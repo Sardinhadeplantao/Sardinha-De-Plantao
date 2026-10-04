@@ -1,79 +1,75 @@
-"""Initial catalog (Phase 0). IDs must be validated against each source API: run `python -m kondratiev.validate`."""
-CATALOG = [
-    dict(id="fred_dgs10", perspective="kondratiev", layer="timing", source="fred", code="DGS10",
-         name="Juros do Tesouro EUA 10 anos", country="USA", unit="% a.a.", frequency="daily", role="procyclical",
-         rationale="Juros longos sobem na expansão (fase A) e são o preço de referência do capital no ciclo de Kondratiev.",
-         source_url="https://fred.stlouisfed.org/series/DGS10", stale_after_days=7),
-    dict(id="fred_cpiaucsl", perspective="kondratiev", layer="regime", source="fred", code="CPIAUCSL",
-         name="Índice de preços ao consumidor (EUA)", country="USA", unit="índice 1982-84=100", frequency="monthly",
-         role="procyclical",
-         rationale="Preços acelerando caracterizam a fase A; deflação ou desinflação prolongada, a fase B.",
-         source_url="https://fred.stlouisfed.org/series/CPIAUCSL", stale_after_days=60),
+"""Series catalog. `scope`: 'usa' (main focus) or 'global'. IDs are validated against each source API
+(`python -m kondratiev.validate`); a series without data shows as 'Sem dados' rather than failing the run."""
 
-    # World Bank (keyless, annual: structure layer, 1-2 year publication lag)
-    dict(id="wb_wld_fp_cpi_totl_zg", perspective="kondratiev", layer="structure", source="worldbank", code="FP.CPI.TOTL.ZG",
-         name="Inflação ao consumidor (Mundo)", country="WLD", unit="% a.a.", frequency="annual", role="procyclical",
-         rationale="Preços acelerando caracterizam a fase A; desinflação prolongada, a fase B.",
-         source_url="https://data.worldbank.org/indicator/FP.CPI.TOTL.ZG?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_ny_gdp_defl_kd_zg", perspective="kondratiev", layer="structure", source="worldbank", code="NY.GDP.DEFL.KD.ZG",
-         name="Deflator do PIB (Mundo)", country="WLD", unit="% a.a.", frequency="annual", role="procyclical",
-         rationale="Medida ampla de preços: sobe na expansão, cai na contração longa.",
-         source_url="https://data.worldbank.org/indicator/NY.GDP.DEFL.KD.ZG?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_ny_gdp_mktp_kd_zg", perspective="kondratiev", layer="structure", source="worldbank", code="NY.GDP.MKTP.KD.ZG",
-         name="Crescimento do PIB (Mundo)", country="WLD", unit="% a.a.", frequency="annual", role="procyclical",
-         rationale="Ritmo de produção: mais forte na fase A do ciclo longo.",
-         source_url="https://data.worldbank.org/indicator/NY.GDP.MKTP.KD.ZG?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_gb_xpd_rsdv_gd_zs", perspective="schumpeter", layer="structure", source="worldbank", code="GB.XPD.RSDV.GD.ZS",
-         name="P&D como % do PIB", country="WLD", unit="% do PIB", frequency="annual", role="procyclical",
-         rationale="Esforço de inovação: base de novos clusters tecnológicos.",
-         source_url="https://data.worldbank.org/indicator/GB.XPD.RSDV.GD.ZS?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_ip_pat_resd", perspective="schumpeter", layer="structure", source="worldbank", code="IP.PAT.RESD",
-         name="Patentes depositadas (residentes)", country="WLD", unit="patentes", frequency="annual", role="procyclical",
-         rationale="Fluxo de invenções, que antecede a onda de inovações.",
-         source_url="https://data.worldbank.org/indicator/IP.PAT.RESD?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_sp_pop_scie_rd_p6", perspective="schumpeter", layer="structure", source="worldbank", code="SP.POP.SCIE.RD.P6",
-         name="Pesquisadores por milhão de habitantes", country="WLD", unit="por milhão", frequency="annual", role="procyclical",
-         rationale="Capacidade humana de inovar.",
-         source_url="https://data.worldbank.org/indicator/SP.POP.SCIE.RD.P6?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_tx_val_tech_mf_zs", perspective="schumpeter", layer="structure", source="worldbank", code="TX.VAL.TECH.MF.ZS",
-         name="Exportações de alta tecnologia", country="WLD", unit="% das exportações industriais", frequency="annual", role="procyclical",
-         rationale="Difusão comercial das tecnologias novas.",
-         source_url="https://data.worldbank.org/indicator/TX.VAL.TECH.MF.ZS?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_cm_mkt_lcap_gd_zs", perspective="perez", layer="structure", source="worldbank", code="CM.MKT.LCAP.GD.ZS",
-         name="Capitalização de mercado das ações", country="WLD", unit="% do PIB", frequency="annual", role="procyclical",
-         rationale="Indicador Buffett: capital financeiro descolado do produtivo sinaliza frenesi.",
-         source_url="https://data.worldbank.org/indicator/CM.MKT.LCAP.GD.ZS?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_cm_mkt_trad_gd_zs", perspective="perez", layer="structure", source="worldbank", code="CM.MKT.TRAD.GD.ZS",
-         name="Valor das ações negociadas", country="WLD", unit="% do PIB", frequency="annual", role="procyclical",
-         rationale="Intensidade especulativa do mercado.",
-         source_url="https://data.worldbank.org/indicator/CM.MKT.TRAD.GD.ZS?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_tx_val_ictg_zs_un", perspective="perez", layer="structure", source="worldbank", code="TX.VAL.ICTG.ZS.UN",
-         name="Exportações de TIC", country="WLD", unit="% das exportações de bens", frequency="annual", role="procyclical",
-         rationale="Peso do paradigma tecnológico atual (informação).",
-         source_url="https://data.worldbank.org/indicator/TX.VAL.ICTG.ZS.UN?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_eg_fec_rnew_zs", perspective="freeman", layer="structure", source="worldbank", code="EG.FEC.RNEW.ZS",
-         name="Energia renovável no consumo final", country="WLD", unit="% do consumo", frequency="annual", role="procyclical",
-         rationale="Difusão do novo insumo-chave energético.",
-         source_url="https://data.worldbank.org/indicator/EG.FEC.RNEW.ZS?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_en_ghg_co2_pc_ce_ar5", perspective="freeman", layer="structure", source="worldbank", code="EN.GHG.CO2.PC.CE.AR5",
-         name="Emissões de CO₂ per capita", country="WLD", unit="t por pessoa", frequency="annual", role="procyclical",
-         rationale="Queda sinaliza descarbonização da base produtiva.",
-         source_url="https://data.worldbank.org/indicator/EN.GHG.CO2.PC.CE.AR5?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_eg_egy_prim_pp_kd", perspective="freeman", layer="structure", source="worldbank", code="EG.EGY.PRIM.PP.KD",
-         name="Intensidade energética do PIB", country="WLD", unit="MJ por US$ de PIB", frequency="annual", role="procyclical",
-         rationale="Queda sinaliza eficiência do paradigma vigente.",
-         source_url="https://data.worldbank.org/indicator/EG.EGY.PRIM.PP.KD?locations=1W", stale_after_days=900),
-    dict(id="wb_wld_fs_ast_prvt_gd_zs", perspective="minsky", layer="structure", source="worldbank", code="FS.AST.PRVT.GD.ZS",
-         name="Crédito ao setor privado", country="WLD", unit="% do PIB", frequency="annual", role="procyclical",
-         rationale="Alavancagem do setor privado: excesso gera fragilidade.",
-         source_url="https://data.worldbank.org/indicator/FS.AST.PRVT.GD.ZS?locations=1W", stale_after_days=900),
-    # US Treasury (keyless, daily)
-    dict(id="ust_10y", perspective="kondratiev", layer="timing", source="treasury", code="10 Yr",
-         name="Juros do Tesouro EUA 10 anos", country="USA", unit="% a.a.", frequency="daily", role="procyclical",
-         rationale="Juros longos sobem na expansão (fase A) e são o preço de referência do capital.",
-         source_url="https://home.treasury.gov/resource-center/data-chart-center/interest-rates", stale_after_days=7),
-    dict(id="ust_2y", perspective="minsky", layer="timing", source="treasury", code="2 Yr",
-         name="Juros do Tesouro EUA 2 anos", country="USA", unit="% a.a.", frequency="daily", role="fragility",
-         rationale="Com o de 10 anos forma a curva de juros; inversão (2 anos acima de 10) antecede crises.",
-         source_url="https://home.treasury.gov/resource-center/data-chart-center/interest-rates", stale_after_days=7),
+_WB_URL = "https://data.worldbank.org/indicator/{code}?locations={loc}"
+
+# (perspective, name, World Bank code, unit, rationale, available_for_world)
+_WB = [
+    ("kondratiev", "Inflação ao consumidor", "FP.CPI.TOTL.ZG", "% a.a.", "Preços acelerando caracterizam a fase A; desinflação prolongada, a fase B.", True),
+    ("kondratiev", "Deflator do PIB", "NY.GDP.DEFL.KD.ZG", "% a.a.", "Medida ampla de preços: sobe na expansão, cai na contração longa.", True),
+    ("kondratiev", "Crescimento do PIB", "NY.GDP.MKTP.KD.ZG", "% a.a.", "Ritmo de produção: mais forte na fase A do ciclo longo.", True),
+    ("kondratiev", "Taxa de juros real", "FR.INR.RINR", "% a.a.", "Custo real do capital; juros reais altos marcam fases tardias do ciclo.", False),
+    ("schumpeter", "P&D como % do PIB", "GB.XPD.RSDV.GD.ZS", "% do PIB", "Esforço de inovação: base de novos clusters tecnológicos.", True),
+    ("schumpeter", "Patentes depositadas (residentes)", "IP.PAT.RESD", "patentes", "Fluxo de invenções, que antecede a onda de inovações.", True),
+    ("schumpeter", "Pesquisadores por milhão de habitantes", "SP.POP.SCIE.RD.P6", "por milhão", "Capacidade humana de inovar.", True),
+    ("schumpeter", "Exportações de alta tecnologia", "TX.VAL.TECH.MF.ZS", "% das exportações industriais", "Difusão comercial das tecnologias novas.", True),
+    ("perez", "Capitalização de mercado das ações", "CM.MKT.LCAP.GD.ZS", "% do PIB", "Indicador Buffett: capital financeiro descolado do produtivo sinaliza frenesi.", True),
+    ("perez", "Valor das ações negociadas", "CM.MKT.TRAD.GD.ZS", "% do PIB", "Intensidade especulativa do mercado.", True),
+    ("perez", "Exportações de bens de TIC", "TX.VAL.ICTG.ZS.UN", "% das exportações de bens", "Peso do paradigma tecnológico atual (informação).", True),
+    ("perez", "Variação do índice de ações", "CM.MKT.INDX.ZG", "% a.a.", "Ritmo de valorização do capital financeiro.", False),
+    ("freeman", "Energia renovável no consumo final", "EG.FEC.RNEW.ZS", "% do consumo", "Difusão do novo insumo-chave energético.", True),
+    ("freeman", "Emissões de CO₂ per capita", "EN.GHG.CO2.PC.CE.AR5", "t por pessoa", "Queda sinaliza descarbonização da base produtiva.", True),
+    ("freeman", "Intensidade energética do PIB", "EG.EGY.PRIM.PP.KD", "MJ por US$ de PIB", "Queda sinaliza eficiência do paradigma vigente.", True),
+    ("minsky", "Crédito ao setor privado", "FS.AST.PRVT.GD.ZS", "% do PIB", "Alavancagem do setor privado: excesso gera fragilidade.", True),
+    ("minsky", "Crédito doméstico", "FS.AST.DOMS.GD.ZS", "% do PIB", "Endividamento total da economia.", False),
+    ("minsky", "Capital bancário sobre ativos", "FB.BNK.CAPA.ZS", "%", "Colchão dos bancos contra perdas.", False),
 ]
+
+# (id, perspective, layer, FRED code, name, unit, frequency, stale_after_days, rationale)
+_FRED = [
+    ("fred_fedfunds", "kondratiev", "regime", "FEDFUNDS", "Taxa de juros básica (Fed Funds)", "% a.a.", "monthly", 60, "Preço do dinheiro definido pelo banco central: referência de todo o sistema de crédito."),
+    ("fred_dfii10", "kondratiev", "timing", "DFII10", "Juros reais do Tesouro 10 anos (TIPS)", "% a.a.", "daily", 7, "Custo real do capital de longo prazo, sem a distorção da inflação."),
+    ("fred_cpiaucsl", "kondratiev", "regime", "CPIAUCSL", "Índice de preços ao consumidor", "índice 1982-84=100", "monthly", 60, "Preços acelerando caracterizam a fase A; deflação ou desinflação prolongada, a fase B."),
+    ("fred_ppiaco", "kondratiev", "regime", "PPIACO", "Índice de preços ao produtor (commodities)", "índice 1982=100", "monthly", 60, "Preços de matérias-primas lideram a inflação ao consumidor nas ondas longas."),
+    ("fred_dcoilwtico", "kondratiev", "timing", "DCOILWTICO", "Petróleo WTI", "US$ por barril", "daily", 7, "Preço do principal insumo energético: choques marcam viradas de fase."),
+    ("fred_indpro", "kondratiev", "regime", "INDPRO", "Produção industrial", "índice 2017=100", "monthly", 60, "Ritmo da produção física da economia."),
+    ("fred_unrate", "kondratiev", "regime", "UNRATE", "Taxa de desemprego", "%", "monthly", 60, "Folga do mercado de trabalho ao longo do ciclo."),
+    ("fred_t10y2y", "minsky", "timing", "T10Y2Y", "Curva de juros (10 anos menos 2 anos)", "p.p.", "daily", 7, "Inversão (valor negativo) antecede recessões e crises de crédito."),
+    ("fred_t10y3m", "minsky", "timing", "T10Y3M", "Curva de juros (10 anos menos 3 meses)", "p.p.", "daily", 7, "Versão da curva mais usada para prever recessões."),
+    ("fred_baa10y", "minsky", "timing", "BAA10Y", "Spread de crédito corporativo (Baa menos Tesouro 10 anos)", "p.p.", "daily", 7, "Prêmio de risco do crédito: dispara quando a fragilidade se revela."),
+    ("fred_hy", "minsky", "timing", "BAMLH0A0HYM2", "Spread de títulos high yield", "p.p.", "daily", 7, "Termômetro do apetite por risco no crédito especulativo."),
+    ("fred_nfci", "minsky", "timing", "NFCI", "Condições financeiras (Chicago Fed)", "índice", "weekly", 14, "Acima de zero: condições mais apertadas que a média histórica."),
+    ("fred_tdsp", "minsky", "regime", "TDSP", "Serviço da dívida das famílias", "% da renda disponível", "quarterly", 120, "Peso da dívida sobre a renda: base da fragilidade financeira de Minsky."),
+    ("fred_m2sl", "minsky", "regime", "M2SL", "Oferta de moeda M2", "US$ bilhões", "monthly", 60, "Liquidez disponível para alimentar ativos e crédito."),
+    ("fred_mortgage30us", "minsky", "timing", "MORTGAGE30US", "Juros do financiamento imobiliário 30 anos", "% a.a.", "weekly", 14, "Custo do crédito imobiliário, setor central em ciclos de crédito."),
+]
+
+_TREASURY = [("ust_3m", "3 Mo", "3 meses", "regime", "minsky"), ("ust_2y", "2 Yr", "2 anos", "timing", "minsky"),
+             ("ust_5y", "5 Yr", "5 anos", "timing", "kondratiev"), ("ust_10y", "10 Yr", "10 anos", "timing", "kondratiev"),
+             ("ust_30y", "30 Yr", "30 anos", "timing", "kondratiev")]
+_TURL = "https://home.treasury.gov/resource-center/data-chart-center/interest-rates"
+
+
+def _build():
+    out = []
+    for scope, country, loc, label in (("usa", "USA", "US", "EUA"), ("global", "WLD", "1W", "Mundo")):
+        for persp, name, code, unit, why, world_ok in _WB:
+            if scope == "global" and not world_ok:
+                continue
+            out.append(dict(id=f"wb_{country.lower()}_{code.lower().replace('.', '_')}", scope=scope, perspective=persp,
+                            layer="structure", source="worldbank", code=code, name=f"{name} ({label})", country=country,
+                            unit=unit, frequency="annual", role="procyclical", rationale=why,
+                            source_url=_WB_URL.format(code=code, loc=loc), stale_after_days=900))
+    for id_, persp, layer, code, name, unit, freq, stale, why in _FRED:
+        out.append(dict(id=id_, scope="usa", perspective=persp, layer=layer, source="fred", code=code,
+                        name=f"{name} (EUA)", country="USA", unit=unit, frequency=freq, role="procyclical", rationale=why,
+                        source_url=f"https://fred.stlouisfed.org/series/{code}", stale_after_days=stale))
+    for id_, col, label, layer, persp in _TREASURY:
+        out.append(dict(id=id_, scope="usa", perspective=persp, layer=layer, source="treasury", code=col,
+                        name=f"Juros do Tesouro {label} (EUA)", country="USA", unit="% a.a.", frequency="daily",
+                        role="procyclical", rationale="Curva de juros oficial do Tesouro dos EUA: preço do capital em cada prazo.",
+                        source_url=_TURL, stale_after_days=7))
+    return out
+
+
+CATALOG = _build()

@@ -9,6 +9,7 @@ md = MetaData()
 series_catalog = Table(
     "series_catalog", md,
     Column("id", String, primary_key=True),
+    Column("scope", String, nullable=False),          # usa | global
     Column("perspective", String, nullable=False),
     Column("layer", String, nullable=False),          # structure | regime | timing
     Column("source", String, nullable=False),
@@ -74,9 +75,10 @@ def upsert(engine, table, rows, keys):
     if not rows:
         return 0
     with engine.begin() as c:
-        stmt = _insert(engine, table).values(rows)
-        update = {k: stmt.excluded[k] for k in rows[0] if k not in keys}
-        c.execute(stmt.on_conflict_do_update(index_elements=keys, set_=update))
+        for i in range(0, len(rows), 2000):  # chunked: stays under the database's bind-variable limit
+            stmt = _insert(engine, table).values(rows[i:i + 2000])
+            update = {k: stmt.excluded[k] for k in rows[i] if k not in keys}
+            c.execute(stmt.on_conflict_do_update(index_elements=keys, set_=update))
     return len(rows)
 
 
