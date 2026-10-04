@@ -8,9 +8,14 @@ from kondratiev.http import get_text
 URL = "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/{y}/all"
 
 
+_cache: dict[int, str] = {}
+
+
 def _year(series, year, session):
-    text = get_text(URL.format(y=year), {"type": "daily_treasury_yield_curve", "field_tdr_date_value": year,
+    if year not in _cache:  # the CSV holds every maturity: fetch each year once per run
+        _cache[year] = get_text(URL.format(y=year), {"type": "daily_treasury_yield_curve", "field_tdr_date_value": year,
                                           "page": "", "_format": "csv"}, session=session)
+    text = _cache[year]
     out = []
     for row in csv.DictReader(io.StringIO(text)):
         raw = (row.get(series["code"]) or "").strip()

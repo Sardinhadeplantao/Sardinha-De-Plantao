@@ -3,7 +3,7 @@ import path from "node:path";
 import { freshness, type Freshness } from "./freshness";
 
 export type Indicator = {
-  id: string; name: string; perspective: string; layer: string; source: string; code: string; unit: string | null;
+  id: string; name: string; scope: "usa" | "global"; perspective: string; layer: string; source: string; code: string; unit: string | null;
   frequency: string; rationale: string | null; source_url: string | null; stale_after_days: number;
   value: number | null; previous: number | null; ref_date: string | null; as_of: string | null;
   history: [string, number][]; status: Freshness | null;

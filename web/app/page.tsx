@@ -45,7 +45,12 @@ function Card({ i }: { i: Indicator }) {
 export default function Home() {
   const { indicators, runs, generated_at } = loadData();
   const error: string | null = null;
-  const groups = Object.keys(PERSPECTIVES).map((p) => [p, indicators.filter((i) => i.perspective === p)] as const).filter(([, l]) => l.length);
+  const scopes = [
+    ["usa", "Estados Unidos", "Foco principal: a maior economia e o centro do sistema financeiro global."],
+    ["global", "Visão global", "Agregado mundial (Banco Mundial), para contexto estrutural."],
+  ] as const;
+  const groups = (scope: string) =>
+    Object.keys(PERSPECTIVES).map((p) => [p, indicators.filter((i) => i.scope === scope && i.perspective === p)] as const).filter(([, l]) => l.length);
 
   return (
     <>
@@ -57,11 +62,17 @@ export default function Home() {
           Ainda não há dados. A primeira atualização automática (aba Actions do GitHub) coleta os dados reais das fontes oficiais.
         </p>
       )}
-      {groups.map(([p, list]) => (
-        <section key={p} className="mt-8">
-          <h2 className="mb-3 text-lg font-semibold">{PERSPECTIVES[p]}</h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{list.map((i) => <Card key={i.id} i={i} />)}</div>
-        </section>
+      {scopes.map(([scope, title, sub]) => groups(scope).length > 0 && (
+        <div key={scope} className="mt-10">
+          <h2 className="text-xl font-bold">{title}</h2>
+          <p className="text-sm text-slate-400">{sub}</p>
+          {groups(scope).map(([p, list]) => (
+            <section key={p} className="mt-6">
+              <h3 className="mb-3 text-lg font-semibold">{PERSPECTIVES[p]}</h3>
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{list.map((i) => <Card key={i.id} i={i} />)}</div>
+            </section>
+          ))}
+        </div>
       ))}
       <section className="mt-10">
         <h2 className="mb-3 text-lg font-semibold">Qualidade dos dados</h2>

@@ -6,7 +6,7 @@ BASE = "https://api.stlouisfed.org/fred"
 
 
 def _key():
-    key = os.environ.get("FRED_API_KEY")
+    key = (os.environ.get("FRED_API_KEY") or "").strip()
     if not key:
         raise RuntimeError("FRED_API_KEY is not set")
     return key

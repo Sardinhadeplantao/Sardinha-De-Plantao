@@ -6,9 +6,9 @@ from kondratiev import db, ingest, freshness
 from kondratiev.sources import fred, worldbank
 
 CAT = [
-    dict(id="f1", perspective="kondratiev", layer="timing", source="fred", code="DGS10", name="x", country="USA",
+    dict(id="f1", scope="usa", perspective="kondratiev", layer="timing", source="fred", code="DGS10", name="x", country="USA",
          unit="%", frequency="daily", stale_after_days=7),
-    dict(id="w1", perspective="kondratiev", layer="structure", source="worldbank", code="FP.CPI.TOTL.ZG", name="y",
+    dict(id="w1", scope="global", perspective="kondratiev", layer="structure", source="worldbank", code="FP.CPI.TOTL.ZG", name="y",
          country="WLD", unit="%", frequency="annual", stale_after_days=730),
 ]
 
@@ -70,6 +70,7 @@ def test_fred_skipped_without_key(engine, monkeypatch):
 
 def test_treasury_parses_csv_and_skips_blank():
     from kondratiev.sources import treasury
+    treasury._cache.clear()
     class S:
         def get(self, *a, **k):
             return type("R", (), {"status_code": 200, "text": "Date,2 Yr,10 Yr\n10/01/2026,3.9,4.1\n09/30/2026,N/A,\n",
@@ -101,3 +102,10 @@ def test_freshness():
     assert freshness.status(date(2026, 10, 1), 7, t) == "ok"
     assert freshness.status(date(2026, 9, 20), 7, t) == "atrasado"
     assert freshness.status(date(2026, 8, 1), 7, t) == "obsoleto"
+
+
+def test_fred_key_whitespace_is_ignored(monkeypatch):
+    monkeypatch.setenv("FRED_API_KEY", "  secret-key\n")
+    s = FakeSession()
+    fred.fetch(CAT[0], session=s)
+    assert s.calls[0][1]["api_key"] == "secret-key"

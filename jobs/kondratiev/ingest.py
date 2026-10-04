@@ -11,7 +11,7 @@ SOURCES = {"fred": fred, "treasury": treasury, "worldbank": worldbank}
 
 
 def run(engine, catalog=CATALOG, sources=SOURCES, session=None):
-    if not os.environ.get("FRED_API_KEY"):  # FRED is optional: without a key its series are simply not tracked
+    if not (os.environ.get("FRED_API_KEY") or "").strip():  # FRED is optional: without a key its series are simply not tracked
         catalog = [s for s in catalog if s["source"] != "fred"]
     db.upsert(engine, db.series_catalog, catalog, ["id"])
     failures = 0
