@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Chart } from "./Chart";
 import { DetailModal } from "./DetailModal";
 import type { Data, Indicator, Index } from "@/lib/data";
-import { PERSPECTIVES } from "@/lib/reading";
+import { PERSPECTIVES, bases } from "@/lib/reading";
 
 const BADGE = { ok: "bg-emerald-900 text-emerald-300", atrasado: "bg-amber-900 text-amber-300", obsoleto: "bg-red-900 text-red-300" };
 const ZONE: Record<string, string> = { "muito baixo": "text-sky-300", baixo: "text-sky-400", neutro: "text-slate-300", alto: "text-amber-400", "muito alto": "text-red-400" };
@@ -28,17 +28,18 @@ function IndexPanel({ persp, idx, recessions, onPick, indicators }: { persp: str
       <p className={`mt-1 text-lg font-bold ${stateColor(persp, idx.value)}`}>{idx.state ?? "Dados insuficientes"}</p>
       {idx.value !== null && (
         <>
-          <div className="mt-1 flex items-center gap-3 text-xs text-slate-400">
-            <span>Índice <b className="text-slate-100">{fmt(idx.value, 0)}</b>/100</span>
-            {idx.change_12m != null && <span>{idx.change_12m >= 0 ? "▲" : "▼"} {fmt(Math.abs(idx.change_12m), 0)} pts em 12 meses</span>}
+          <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-slate-400">
+            <span>Índice <b className="text-slate-100">{Math.round(idx.value)}</b>/100</span>
+            {idx.change_12m != null && <span>{idx.change_12m >= 0 ? "▲" : "▼"} {Math.round(Math.abs(idx.change_12m))} pts em 12 meses</span>}
+            {idx.as_of && <span className={idx.stale ? "text-amber-400" : ""}>dado de {idx.as_of}{idx.stale ? " (desatualizado)" : ""}</span>}
           </div>
-          <div className="mt-2"><Chart data={hist.filter((_, i) => i % 1 === 0)} recessions={recessions} fixedY={[0, 100]} height={150} color={TONE[persp]} digits={0} /></div>
+          <div className="mt-2"><Chart data={hist} recessions={recessions} fixedY={[0, 100]} height={150} color={TONE[persp]} digits={0} label={`${PERSPECTIVES[persp]}: ${idx.label}`} /></div>
           <p className="mt-1 text-[11px] text-slate-500">{idx.label}. Sombra cinza = recessões dos EUA.</p>
           <p className="mt-2 text-xs text-slate-300">{idx.summary}</p>
           <div className="mt-2 flex flex-wrap gap-1">
             {idx.drivers.slice(0, 3).map((d) => {
               const ind = indicators.find((i) => i.id === d.id);
-              return ind ? <button key={d.id} onClick={() => onPick(ind)} className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800">{d.name} · {fmt(d.score, 0)}</button> : null;
+              return ind ? <button key={d.id} onClick={() => onPick(ind)} className="rounded border border-slate-700 px-2 py-0.5 text-[11px] text-slate-300 hover:bg-slate-800">{d.name} · {Math.round(d.score)}</button> : null;
             })}
           </div>
         </>
@@ -69,13 +70,25 @@ function Card({ i, onPick }: { i: Indicator; onPick: (i: Indicator) => void }) {
           <p className="mt-2 text-2xl font-semibold">{fmt(i.value)} <span className="text-sm font-normal text-slate-400">{i.unit}</span></p>
           <Spark h={i.history} />
           {delta !== null && <p className="text-xs text-slate-400">{delta >= 0 ? "▲" : "▼"} {fmt(Math.abs(delta))} vs. observação anterior</p>}
-          {i.stats && <p className="mt-1 text-xs">Percentil <b>{fmt(i.stats.percentile, 0)}</b> da história · <span className={ZONE[i.stats.zone]}>{i.stats.zone}</span></p>}
+          {(() => {
+            const b = bases(i)[0];
+            if (!b) return null;
+            const change = b.label !== "Nível";
+            return <p className="mt-1 text-xs">{change && <>{b.label}: <b>{b.value >= 0 ? "+" : ""}{fmt(b.value, 1)}{b.unit === "%" ? "%" : ` ${b.unit ?? ""}`}</b> · </>}
+              Percentil <b>{fmt(b.stats.percentile, 0)}</b>{change ? "" : " da história"} · <span className={ZONE[b.stats.zone]}>{b.stats.zone}</span></p>;
+          })()}
           <p className="mt-1 text-xs text-slate-400">Referência {i.ref_date} · {i.source.toUpperCase()} · {i.frequency}</p>
         </>
       )}
       <p className="mt-2 text-xs text-sky-400">Ver histórico e leitura →</p>
     </button>
   );
+}
+
+function monthsBetween(yyyymm: string, iso: string) {
+  const a = Number(yyyymm.slice(0, 4)) * 12 + Number(yyyymm.slice(5, 7));
+  const b = Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7));
+  return b - a;
 }
 
 function Context({ data }: { data: Data }) {
@@ -87,9 +100,15 @@ function Context({ data }: { data: Data }) {
         <section className="mt-8 rounded-xl border border-slate-800 bg-slate-900 p-4">
           <h2 className="text-lg font-bold">Contexto de valuation — o que aconteceu depois de CAPE parecido</h2>
           <p className="mt-1 text-sm text-slate-300">
-            O CAPE do S&P 500 está em <b>{fmt(v.current, 1)}</b> ({v.current_date}), no percentil <b>{fmt(v.percentile, 0)}</b> da história desde {v.since.slice(0, 4)}.
+            Último CAPE disponível do S&P 500: <b>{fmt(v.current, 1)}</b> ({v.current_date}), no percentil <b>{fmt(v.percentile, 0)}</b> da história desde {v.since.slice(0, 4)}.
             A tabela mostra o retorno real anualizado nos meses em que o CAPE esteve entre os percentis {v.band[0]} e {v.band[1]}, contra todos os meses.
           </p>
+          {data.generated_at && monthsBetween(v.current_date, data.generated_at) > 6 && (
+            <p className="mt-2 rounded border border-amber-800 bg-amber-950/40 p-2 text-xs text-amber-300">
+              Atenção: o arquivo público do Shiller está desatualizado ({monthsBetween(v.current_date, data.generated_at)} meses). A tabela usa o último CAPE publicado,
+              que pode ser diferente do atual. Para um valuation atualizado, veja o indicador Buffett (Fed) e o Nasdaq na seção Perez.
+            </p>
+          )}
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-left text-xs">
               <thead className="text-slate-400"><tr><th className="py-1">Horizonte</th><th>CAPE parecido: mediana</th><th>pior 10%</th><th>melhor 10%</th><th>% negativos</th><th>meses</th><th>Todos os meses: mediana</th></tr></thead>
@@ -165,9 +184,26 @@ export function Dashboard({ data }: { data: Data }) {
               {Object.keys(PERSPECTIVES).map((p) => (
                 <li key={p}><span className="text-slate-400">{PERSPECTIVES[p].split(" — ")[0]}:</span>{" "}
                   <b className={stateColor(p, indices[p]?.value ?? null)}>{indices[p]?.state ?? "dados insuficientes"}</b>
-                  {indices[p]?.value != null && <span className="text-slate-500"> (índice {fmt(indices[p].value!, 0)})</span>}</li>
+                  {indices[p]?.value != null && <span className="text-slate-500"> (índice {Math.round(indices[p].value!)}{indices[p].stale ? `, dado de ${indices[p].as_of}` : ""})</span>}</li>
               ))}
             </ul>
+            {(data.extremes?.[scope]?.length ?? 0) > 0 && (
+              <div className="mt-3">
+                <h3 className="text-sm font-semibold text-slate-200">Nos extremos da própria história agora</h3>
+                <ul className="mt-1 flex flex-wrap gap-1">
+                  {data.extremes[scope].map((e) => {
+                    const ind = list.find((i) => i.id === e.id);
+                    return (
+                      <li key={e.id}>
+                        <button onClick={() => ind && setOpen(ind)} className={`rounded border px-2 py-0.5 text-[11px] hover:bg-slate-800 ${e.direction === "máxima" ? "border-red-900 text-red-300" : "border-sky-900 text-sky-300"}`}>
+                          {e.name}{e.basis !== "nível" ? ` (${e.basis.toLowerCase()})` : ""} · percentil {Math.round(e.percentile)}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
             <p className="mt-3 text-xs text-slate-400">
               Cada ótica é um índice de 0 a 100 construído com a posição de cada indicador na sua própria história (percentil sem olhar o futuro). Os estados vêm de regras
               fixas documentadas na metodologia. É uma leitura descritiva de contexto: não prevê nada e não é recomendação de investimento. A evidência estatística sobre ondas
@@ -208,7 +244,7 @@ export function Dashboard({ data }: { data: Data }) {
         {missing.length > 0 && <p className="mb-2 text-xs text-amber-400">Séries sem dados nesta visão ({missing.length}): {missing.map((m) => m.name).join("; ")}. Veja a última coleta abaixo.</p>}
         {data.runs.length === 0 ? <p className="text-sm text-slate-500">Nenhuma execução registrada.</p> : (
           <table className="w-full text-left text-xs"><thead className="text-slate-400"><tr><th>Fonte</th><th>Início</th><th>Status</th><th>Linhas</th><th>Erro</th></tr></thead>
-            <tbody>{data.runs.slice(0, 6).map((r, k) => (<tr key={k} className="border-t border-slate-800"><td className="py-1">{r.source}</td><td>{r.started_at.slice(0, 16)}</td><td>{r.status}</td><td>{r.rows}</td><td className="text-red-400">{r.error}</td></tr>))}</tbody></table>
+            <tbody>{data.runs.map((r, k) => (<tr key={k} className="border-t border-slate-800"><td className="py-1">{r.source}</td><td>{r.started_at.slice(0, 16)}</td><td>{r.status}</td><td>{r.rows}</td><td className="break-all text-red-400">{r.error ? r.error.slice(0, 300) : ""}</td></tr>))}</tbody></table>
         )}
       </section>
       {open && <DetailModal ind={open} recessions={data.recessions} onClose={() => setOpen(null)} />}

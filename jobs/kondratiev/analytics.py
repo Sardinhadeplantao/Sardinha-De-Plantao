@@ -11,7 +11,7 @@ from datetime import date
 
 import numpy as np
 
-METHODOLOGY_VERSION = "0.2"
+METHODOLOGY_VERSION = "0.4"
 
 # series id -> (polarity, transform, kind)
 #   polarity +1: a high reading means more expansion / heat / fragility for its index; -1: the opposite.
@@ -28,11 +28,12 @@ SCORING = {
     "wb_wld_ny_gdp_mktp_kd_zg": (1, "level", "diff"),
     # Schumpeter: innovation inputs growing over five years
     **{f"wb_{c}_{k}": (1, "chg60", "pct") for c in ("usa", "wld")
-       for k in ("gb_xpd_rsdv_gd_zs", "ip_pat_resd", "sp_pop_scie_rd_p6", "tx_val_tech_mf_zs")},
+       for k in ("gb_xpd_rsdv_gd_zs", "ip_pat_resd", "sp_pop_scie_rd_p6")},
+    **{f"wb_{c}_tx_val_tech_mf_zs": (1, "level", "diff") for c in ("usa", "wld")},  # short series: a 5-year change leaves too few points
     # Perez: financial capital heat (valuation levels) and spread of the information paradigm
     **{f"wb_{c}_{k}": (1, "level", "diff") for c in ("usa", "wld") for k in ("cm_mkt_lcap_gd_zs", "cm_mkt_trad_gd_zs")},
     **{f"wb_{c}_tx_val_ictg_zs_un": (1, "chg60", "pct") for c in ("usa", "wld")},
-    "wb_usa_cm_mkt_indx_zg": (1, "level", "diff"),
+    "fred_buffett": (1, "level", "diff"), "fred_nasdaq": (1, "chg12", "pct"),
     # Freeman: diffusion of the new energy paradigm (renewables up, carbon and energy intensity down)
     **{f"wb_{c}_eg_fec_rnew_zs": (1, "chg60", "pct") for c in ("usa", "wld")},
     **{f"wb_{c}_{k}": (-1, "chg60", "pct") for c in ("usa", "wld") for k in ("en_ghg_co2_pc_ce_ar5", "eg_egy_prim_pp_kd")},
@@ -40,7 +41,7 @@ SCORING = {
     **{f"wb_{c}_fs_ast_prvt_gd_zs": (1, "level", "diff") for c in ("usa", "wld")},
     "wb_usa_fs_ast_doms_gd_zs": (1, "level", "diff"), "wb_usa_fb_bnk_capa_zs": (-1, "level", "diff"),
     "fred_t10y2y": (-1, "level", "diff"), "fred_t10y3m": (-1, "level", "diff"), "fred_baa10y": (1, "level", "diff"),
-    "fred_hy": (1, "level", "diff"), "fred_nfci": (1, "level", "diff"), "fred_tdsp": (1, "level", "diff"),
+    "fred_nfci": (1, "level", "diff"), "fred_tdsp": (1, "level", "diff"),
     "fred_m2sl": (1, "chg12", "pct"), "fred_mortgage30us": (1, "level", "diff"),
     "ust_3m": (1, "level", "diff"), "ust_2y": (1, "level", "diff"),
     "bis_us_credit_gap": (1, "level", "diff"), "bis_us_dsr": (1, "level", "diff"),
@@ -48,9 +49,26 @@ SCORING = {
     "shiller_cape": (1, "level", "diff"), "sec_ai_capex_ocf": (1, "level", "diff"), "sec_ai_capex": (1, "chg12", "pct"),
 }
 
+# Sub-groups inside each lens. The index averages members within a group, then averages the groups, so a block of
+# highly correlated series (e.g. five interest rates) does not outvote the rest. Unlisted series form their own lens group.
+GROUPS = {
+    **{k: "preços" for k in ("fred_cpiaucsl", "fred_ppiaco", "fred_dcoilwtico", "wb_usa_fp_cpi_totl_zg",
+                             "wb_usa_ny_gdp_defl_kd_zg", "wb_wld_fp_cpi_totl_zg", "wb_wld_ny_gdp_defl_kd_zg")},
+    **{k: "juros" for k in ("fred_fedfunds", "fred_dfii10", "ust_5y", "ust_10y", "ust_30y", "wb_usa_fr_inr_rinr")},
+    **{k: "atividade" for k in ("fred_indpro", "fred_unrate", "wb_usa_ny_gdp_mktp_kd_zg", "wb_wld_ny_gdp_mktp_kd_zg")},
+    **{k: "alavancagem" for k in ("wb_usa_fs_ast_prvt_gd_zs", "wb_wld_fs_ast_prvt_gd_zs", "wb_usa_fs_ast_doms_gd_zs",
+                                  "wb_usa_fb_bnk_capa_zs", "bis_us_credit_gap", "bis_us_dsr", "fred_tdsp", "fred_m2sl")},
+    **{k: "preço do risco" for k in ("fred_baa10y", "fred_nfci", "fred_mortgage30us")},
+    **{k: "curva e política" for k in ("fred_t10y2y", "fred_t10y3m", "ust_3m", "ust_2y")},
+    **{k: "valuation" for k in ("wb_usa_cm_mkt_lcap_gd_zs", "wb_wld_cm_mkt_lcap_gd_zs", "wb_usa_cm_mkt_trad_gd_zs",
+                                "wb_wld_cm_mkt_trad_gd_zs", "shiller_cape", "fred_buffett", "fred_nasdaq")},
+    **{k: "investimento" for k in ("sec_ai_capex_ocf", "sec_ai_capex", "wb_usa_tx_val_ictg_zs_un", "wb_wld_tx_val_ictg_zs_un")},
+}
+STALE_INDEX_MONTHS = 3  # an index whose latest value is older than this is flagged as stale
+
 # publication lag (months) before a reading can be used, and max age (months) before it is considered stale
 LAG = {"annual": 12, "quarterly": 3, "monthly": 1, "weekly": 0, "daily": 0}
-MAX_AGE = {"annual": 36, "quarterly": 9, "monthly": 3, "weekly": 3, "daily": 3}
+MAX_AGE = {"annual": 24, "quarterly": 9, "monthly": 3, "weekly": 3, "daily": 3}
 MIN_OBS = {"annual": 15, "quarterly": 28, "monthly": 60, "weekly": 60, "daily": 60}
 MIN_MEMBERS = 3
 
@@ -174,11 +192,13 @@ def state_for(index, value):
     return STATES[index][-1][1]
 
 
-def state_with_history(index, values):
-    """State from the latest index value; Perez also flags an inflection (a drop of 10+ points from a recent frenzy)."""
+def state_with_history(index, values, keys=None):
+    """State from the latest index value; Perez also flags an inflection (a drop of 10+ points from a frenzy within
+    the last 24 months). `keys` are month keys aligned with `values` (series can have gaps)."""
     now = values[-1]
     if index == "perez" and len(values) > 1:
-        peak = max(values[-24:])
+        keys = keys or list(range(len(values)))
+        peak = max(v for k, v in zip(keys, values) if k >= keys[-1] - 23)
         if peak >= 75 and now < 75 and peak - now >= 10:
             return "Inflexão (pós-euforia)"
     return state_for(index, now)
@@ -191,27 +211,40 @@ def member_scores(series_id, hist, frequency):
     return [(month_key(d) + LAG[frequency], p if polarity > 0 else 100 - p, d) for d, p in pct]
 
 
-def composite(members, frequencies, last_month):
-    """members: {series_id: [(usable_key, score, ref_date)]}. Returns monthly [(key, mean_score, n)] and latest drivers."""
+def composite(members, frequencies, last_month, groups=None):
+    """members: {series_id: [(usable_key, score, ref_date)]}. Returns monthly [(key, value, n)] and the latest drivers.
+    value = mean over sub-groups of the mean of their members (see GROUPS); n = members available that month."""
+    groups = GROUPS if groups is None else groups
     if not members:
         return [], []
     start = min(s[0][0] for s in members.values() if s)
     out, drivers = [], []
     pointers = {k: 0 for k in members}
     for key in range(start, last_month + 1):
-        vals, latest = [], []
+        latest = []
         for sid, scores in members.items():
             i = pointers[sid]
             while i + 1 < len(scores) and scores[i + 1][0] <= key:
                 i += 1
             pointers[sid] = i
             if scores and scores[i][0] <= key and key - scores[i][0] <= MAX_AGE[frequencies[sid]]:
-                vals.append(scores[i][1])
                 latest.append((sid, scores[i][1], scores[i][2]))
-        if len(vals) >= MIN_MEMBERS:
-            out.append((key, sum(vals) / len(vals), len(vals)))
+        if len(latest) >= MIN_MEMBERS:
+            by_group = {}
+            for sid, sc, _ in latest:
+                by_group.setdefault(groups.get(sid, "_"), []).append(sc)
+            value = sum(sum(v) / len(v) for v in by_group.values()) / len(by_group)
+            out.append((key, value, len(latest)))
             drivers = latest
     return out, drivers
+
+
+def value_months_ago(series, months):
+    """Index value `months` before the latest point of a composite series [(key, value, n)], or None."""
+    if not series:
+        return None
+    pos = {k: v for k, v, _ in series}
+    return pos.get(series[-1][0] - months)
 
 
 def key_to_label(key):
