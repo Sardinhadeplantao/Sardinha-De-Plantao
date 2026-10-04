@@ -11,7 +11,7 @@ export const withStatus = (i: Indicator): Indicator => ({ ...i, status: i.ref_da
 export function loadData(): Data {
   const file = path.join(process.cwd(), "data", "data.json");
   const empty: Data = { generated_at: null, methodology_version: null, indicators: [], indices: { usa: {}, global: {} }, recessions: [],
-    runs: [], backtest: {}, valuation: null, extremes: { usa: [], global: [] } };
+    runs: [], backtest: {}, valuation: null, extremes: { usa: [], global: [] }, thresholds: {} };
   if (!fs.existsSync(file)) return empty;
   const raw = JSON.parse(fs.readFileSync(file, "utf8"));
   return { ...empty, ...raw, indicators: raw.indicators.map(withStatus) };

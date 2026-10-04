@@ -14,12 +14,12 @@ export type Indicator = {
   frequency: string; rationale: string | null; source_url: string | null; stale_after_days: number;
   value: number | null; previous: number | null; ref_date: string | null; as_of: string | null;
   history: [string, number][]; trend: number[]; stats: Stats | null; score: number | null; polarity: number; transform: string | null;
-  view: View | null; status: Freshness | null;
+  view: View | null; note: string | null; status: Freshness | null;
 };
 export type Driver = { id: string; name: string; score: number; ref_date: string; group: string };
 export type Index = {
   label: string; state: string | null; value: number | null; n: number; total: number; change_12m?: number | null;
-  as_of: string | null; stale: boolean; history: [string, number, number][]; drivers: Driver[]; summary: string;
+  as_of: string | null; stale: boolean; groups: { group: string; score: number; n: number }[]; history: [string, number, number][]; drivers: Driver[]; summary: string;
 };
 export type Extreme = { id: string; name: string; percentile: number; basis: string; direction: string };
 export type Backtest = {
@@ -35,4 +35,5 @@ export type Data = {
   generated_at: string | null; methodology_version: string | null; indicators: Indicator[];
   indices: Record<"usa" | "global", Record<string, Index>>; recessions: [string, string][]; runs: Run[];
   backtest: Record<string, Backtest>; valuation: Valuation | null; extremes: Record<"usa" | "global", Extreme[]>;
+  thresholds: Record<string, number[]>;
 };

@@ -217,3 +217,24 @@ def test_fred_ratio_series(monkeypatch):
             return Resp({"observations": obs})
     rows = fred.fetch({"code": "NUM/DEN*0.1"}, session=S())
     assert rows == [(date(2026, 1, 1), 20.0, False)]   # (2000/10)*0.1; the quarter with a missing denominator is skipped
+
+
+def test_ember_filters_area_variable_and_unit():
+    from kondratiev.sources import ember
+    ember._cache.clear()
+    text = ("Area,ISO 3 code,Date,Category,Subcategory,Variable,Unit,Value\n"
+            "United States of America,USA,2026-07-01,Electricity generation,Aggregate fuel,Renewables,%,25.5\n"
+            "United States of America,USA,2026-07-01,Electricity generation,Aggregate fuel,Renewables,TWh,100\n"
+            "World,,2026-07-01,Electricity generation,Aggregate fuel,Renewables,%,32.1\n"
+            "United States of America,USA,2026-08-01,Electricity generation,Aggregate fuel,Renewables,%,24.0\n"
+            "United States of America,USA,2026-08-01,Power sector emissions,CO2 intensity,CO2 intensity,gCO2/kWh,350\n")
+    class S:
+        def get(self, *a, **k):
+            return type("R", (), {"status_code": 200, "text": text})()
+    try:
+        rows = ember.fetch({"code": "USA|Electricity generation|Renewables|%"}, session=S())
+        assert rows == [(date(2026, 7, 1), 25.5, False), (date(2026, 8, 1), 24.0, False)]
+        assert ember.fetch({"code": "World|Electricity generation|Renewables|%"}, session=S())[0][1] == 32.1
+        assert ember.fetch({"code": "USA|Power sector emissions|CO2 intensity|gCO2/kWh"}, session=S())[0][1] == 350
+    finally:
+        ember._cache.clear()

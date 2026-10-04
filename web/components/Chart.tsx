@@ -5,9 +5,9 @@ type Pt = [string, number];
 type Band = { from: number; to: number; color: string };
 const t = (d: string) => new Date(d.length === 7 ? d + "-01" : d).getTime();
 
-export function Chart({ data, trend, recessions = [], bands = [], fixedY, height = 260, color = "#38bdf8", unit = "", digits = 2, label = "Gráfico histórico" }: {
+export function Chart({ data, trend, recessions = [], bands = [], fixedY, height = 260, color = "#38bdf8", unit = "", digits = 2, label = "Gráfico histórico", guides = [] }: {
   data: Pt[]; trend?: number[]; recessions?: [string, string][]; bands?: Band[]; fixedY?: [number, number];
-  height?: number; color?: string; unit?: string; digits?: number; label?: string;
+  height?: number; color?: string; unit?: string; digits?: number; label?: string; guides?: number[];
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const W = 800, H = height, L = 48, R = 12, T = 12, B = 24;
@@ -22,7 +22,10 @@ export function Chart({ data, trend, recessions = [], bands = [], fixedY, height
     return { xs, x0, x1, lo, hi, X, Y };
   }, [data, trend, fixedY, H]);
   if (!g) return <p className="text-sm text-slate-500">Histórico insuficiente para o gráfico.</p>;
-  const path = (vals: number[]) => vals.map((v, i) => `${i ? "L" : "M"}${g.X(g.xs[i]).toFixed(1)},${g.Y(v).toFixed(1)}`).join("");
+  // Break the line across gaps (more than 3x the typical spacing) instead of drawing a straight bridge.
+  const steps = g.xs.slice(1).map((x, i) => x - g.xs[i]).sort((a, b) => a - b);
+  const gap = (steps[Math.floor(steps.length / 2)] ?? 0) * 3;
+  const path = (vals: number[]) => vals.map((v, i) => `${i && g.xs[i] - g.xs[i - 1] <= gap ? "L" : "M"}${g.X(g.xs[i]).toFixed(1)},${g.Y(v).toFixed(1)}`).join("");
   const yTicks = Array.from({ length: 5 }, (_, i) => g.lo + ((g.hi - g.lo) * i) / 4);
   const yearStep = Math.max(1, Math.round((new Date(g.x1).getFullYear() - new Date(g.x0).getFullYear()) / 7));
   const startY = new Date(g.x0).getFullYear() + 1;
@@ -55,6 +58,7 @@ export function Chart({ data, trend, recessions = [], bands = [], fixedY, height
           <g key={i}><line x1={L} x2={W - R} y1={g.Y(v)} y2={g.Y(v)} stroke="#1e293b" /><text x={L - 6} y={g.Y(v) + 3} textAnchor="end" fontSize="10" fill="#64748b">{fmt(v)}</text></g>
         ))}
         {xTicks.map((y) => <text key={y} x={g.X(new Date(y, 0, 1).getTime())} y={H - 6} textAnchor="middle" fontSize="10" fill="#64748b">{y}</text>)}
+        {guides.map((v) => <line key={`g${v}`} x1={L} x2={W - R} y1={g.Y(v)} y2={g.Y(v)} stroke="#94a3b8" strokeDasharray="4 4" opacity="0.6" />)}
         {trend && <path d={path(trend)} fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="5 3" />}
         <path d={path(data.map((d) => d[1]))} fill="none" stroke={color} strokeWidth="1.8" />
         <circle cx={g.X(g.xs[g.xs.length - 1])} cy={g.Y(data[data.length - 1][1])} r="3.5" fill={color} />

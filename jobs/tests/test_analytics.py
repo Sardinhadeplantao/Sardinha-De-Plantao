@@ -170,3 +170,28 @@ def test_index_summary_rounding_dedup_and_staleness():
     assert "Mais baixas: C (10)." in out["summary"] and out["summary"].count("B (50)") == 1  # no name in both lists
     assert out["stale"] and out["as_of"] == "2025-12" and "2025-12" in out["summary"]
     assert out["change_12m"] is None                                                 # no point exactly 12 months earlier
+
+
+def test_derive_extends_cape_and_crosses_sources():
+    from kondratiev import export
+    obs = {
+        "shiller_cape": [(date(2024, 8, 1), 34.0), (date(2024, 9, 1), 35.0)],
+        "fred_sp500": [(date(2024, 9, 2), 5000.0), (date(2024, 9, 30), 5000.0), (date(2024, 10, 15), 5500.0)],
+        "fred_cpiaucsl": [(date(2023, m, 1), 300.0) for m in range(1, 13)] + [(date(2024, m, 1), 309.0) for m in range(1, 10)] + [(date(2024, 10, 1), 309.0)],
+        "fred_fedfunds": [(date(2024, 9, 1), 5.0)],
+        "fred_dfii10": [(date(2024, 9, 3), 2.0), (date(2024, 9, 20), 2.0), (date(2024, 10, 3), 2.2)],
+    }
+    out, notes = export.derive(obs)
+    cape = out["shiller_cape"]
+    assert cape[-1][0] == date(2024, 10, 1) and abs(cape[-1][1] - 35.0 * 1.1) < 1e-9     # price +10%, CPI flat
+    assert "estimado" in notes["shiller_cape"]
+    assert abs(out["x_real_fedfunds"][0][1] - (5.0 - 3.0)) < 1e-9                          # 5% minus 3% inflation
+    erp = dict(out["x_erp"])
+    assert abs(erp[date(2024, 9, 1)] - (100 / 35.0 - 2.0)) < 1e-9
+    assert abs(erp[date(2024, 10, 1)] - (100 / 38.5 - 2.2)) < 1e-9
+
+
+def test_derive_skips_missing_inputs():
+    from kondratiev import export
+    out, notes = export.derive({"shiller_cape": [(date(2024, 9, 1), 35.0)]})
+    assert out == {} and notes == {}
