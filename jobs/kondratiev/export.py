@@ -122,6 +122,6 @@ if __name__ == "__main__":
             print(f"{scope:6} {p:11} {v['state']}  value={v['value']}  n={v['n']}/{v['total']}")
     for i in data["indicators"]:
         print(f"{i['id']:32} {len(i['history']):4} pts  latest={i['ref_date']}  value={i['value']}  score={i['score']}")
-    for r in data["runs"][:4]:
-        print(f"run {r['source']}: {r['status']} rows={r['rows']} {r['error'] or ''}")
+    for r in data["runs"][:8]:
+        print(f"run {r['source']}: {r['status']} rows={r['rows']} {(r['error'] or '')[:400]}")
     print(f"exported {len(data['indicators'])} indicators, {len(data['recessions'])} recessions")

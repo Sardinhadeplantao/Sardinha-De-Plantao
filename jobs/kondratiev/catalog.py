@@ -80,7 +80,7 @@ def _build():
                     rationale="Preço sobre lucros reais médios de 10 anos, desde 1871: mede o descolamento entre o capital financeiro e a produção (frenesi de Perez).",
                     source_url="https://shillerdata.com/", stale_after_days=75))
     out.append(dict(id="shiller_real_tr", scope="context", perspective="perez", layer="regime", source="shiller",
-                    code="Real Total Return Price", name="S&P 500 — retorno total real (Shiller)", country="USA", unit="índice",
+                    code="Return Price", name="S&P 500 — retorno total real (Shiller)", country="USA", unit="índice",
                     frequency="monthly", role="context", rationale="Base dos retornos históricos por nível de CAPE.",
                     source_url="https://shillerdata.com/", stale_after_days=75))
     out.append(dict(id="sec_ai_capex_ocf", scope="usa", perspective="perez", layer="regime", source="edgar", code="capex_ocf",
