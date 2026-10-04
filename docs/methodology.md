@@ -1,4 +1,4 @@
-# Metodologia (versão 0.2)
+# Metodologia (versão 0.3)
 
 Tudo é descritivo e reproduzível. Nada aqui é previsão nem recomendação de investimento.
 
@@ -30,7 +30,24 @@ Recessões marcadas nos gráficos vêm do NBER (série USREC do FRED).
 
 Os limiares são convenções simples, não estimativas econométricas. Mudar qualquer regra exige nova versão da metodologia.
 
-## 4. Limites que o sistema declara
+## 4. Validação histórica (backtest descritivo)
+Para cada ótica dos EUA, compara-se a média do índice nos 24 meses anteriores ao início de cada recessão do NBER com a média fora de recessões.
+Para Minsky (limiar 60) e Perez (limiar 70) mede-se também quantas recessões foram precedidas por um cruzamento do limiar e a taxa de alarmes falsos.
+Limites: dentro da amostra, dados revisados (não são os divulgados na época) e poucas recessões. Um resultado fraco é informação válida.
+
+## 5. Contexto de valuation
+Retorno real anualizado do S&P 500 (retorno total real de Shiller) em 1, 5 e 10 anos depois dos meses em que o CAPE esteve dentro de ±10 pontos percentuais do percentil atual, contra todos os meses.
+Descritivo, dentro da amostra, janelas sobrepostas (poucos episódios independentes). Não é previsão.
+
+## 6. Investimento em IA (EDGAR)
+Soma de Microsoft, Alphabet, Amazon, Meta e Oracle: capex (PaymentsToAcquirePropertyPlantAndEquipment) e fluxo de caixa operacional (NetCashProvidedByUsedInOperatingActivities)
+em quatro trimestres móveis. Os trimestres discretos são reconstruídos por diferença dos valores acumulados no ano. Trimestres fiscais são mapeados ao trimestre-calendário mais próximo.
+
+## 7. Alertas
+A cada atualização na branch principal, compara-se com o `data.json` publicado antes. Abre-se uma Issue no GitHub quando: uma ótica dos EUA muda de estado, a curva 10 anos − 2 anos inverte ou volta a ser positiva,
+o hiato de crédito do BIS cruza 10 p.p., ou alguma fonte falha na coleta.
+
+## 8. Limites que o sistema declara
 - Há poucos ciclos longos completos (2,5 a 3): qualquer inferência sobre fases tem evidência estatística limitada.
 - A datação da "6ª onda" é interpretativa.
 - Índices usam pesos iguais. Os indicadores do Banco Mundial têm atraso de 1 a 5 anos.

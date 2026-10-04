@@ -1,29 +1,40 @@
 # Kondratiev Monitor
 
-Monitor de ciclos econômicos de longa duração (Kondratiev, Schumpeter, Perez, Freeman, Minsky) com dados oficiais reais.
-**Nenhum dado simulado:** o site só exibe o que foi coletado das fontes oficiais. Documentação em `docs/`.
+Monitor de ciclos econômicos de longa duração (Kondratiev, Schumpeter, Perez, Freeman, Minsky), com foco nos EUA e visão global.
+**Dados oficiais reais, sem nenhum dado simulado.** Site: https://sardinhadeplantao.github.io/Sardinha-De-Plantao/
 
-## Como funciona
-Todo dia o GitHub Actions (`.github/workflows/ingest.yml`) coleta os dados, gera `web/data/data.json`, monta o site e publica no GitHub Pages.
-Sem banco de dados e sem servidor.
-
-- `jobs/` — coleta em Python (Banco Mundial, Tesouro dos EUA, FRED opcional), frescor, testes.
-- `web/` — site Next.js estático.
+## O que o site mostra
+- **Leitura consolidada** com o estado de cada ótica (por exemplo, "Fragilidade média"), regras documentadas em [`docs/methodology.md`](docs/methodology.md).
+- **Índice de 0 a 100 por ótica ao longo do tempo**, com as recessões dos EUA marcadas.
+- **Detalhe de cada indicador:** histórico completo, tendência de longo prazo, percentil, máxima e mínima históricas, frescor e leitura em texto.
+- **Contexto de valuation** (retornos históricos após CAPE parecido) e **validação histórica** (os índices subiram antes das recessões?).
+- **Painel de qualidade** com o resultado de cada coleta.
 
 ## Fontes
-Banco Mundial e Tesouro dos EUA (sem chave). FRED é opcional: só entra se existir o segredo `FRED_API_KEY`.
+FRED (EUA), Tesouro dos EUA, Banco Mundial, BIS (hiato de crédito), Shiller (CAPE) e SEC EDGAR (investimento das grandes de IA).
 
-## Configuração (uma vez)
-1. Settings → Secrets and variables → Actions → New repository secret: `FRED_API_KEY` (opcional).
-2. Settings → Pages → Source: **GitHub Actions**.
-3. Junte este código na branch `main`. A publicação roda sozinha e depois todo dia.
+## Como funciona
+Todo dia o GitHub Actions (`.github/workflows/ingest.yml`) coleta os dados, calcula os índices, monta o site e publica no GitHub Pages. Sem servidor e sem banco externo.
+Quando uma ótica muda de estado, a curva de juros inverte, o hiato de crédito cruza 10 p.p. ou uma fonte falha, abre-se uma **Issue** com o rótulo `alerta`.
+
+- `jobs/` — coleta e cálculos em Python (testes em `jobs/tests`).
+- `web/` — site Next.js estático.
+- `docs/` — metodologia, arquitetura e plano.
+
+## Configuração (já feita; para referência)
+- Settings → Pages → Source: **GitHub Actions**.
+- Segredo `FRED_API_KEY` (chave gratuita do FRED).
+- Segredo opcional `SEC_USER_AGENT`: identificação com e-mail de contato exigida pela SEC (padrão: e-mail no-reply do GitHub do dono do repositório).
+
+## Atualizar na hora
+Aba **Actions → Atualizar dados e publicar site → Run workflow**.
 
 ## Local
 ```
 cd jobs && pip install -r requirements.txt && pytest
-python -m kondratiev.ingest && python -m kondratiev.export ../web/data/data.json
+FRED_API_KEY=... python -m kondratiev.ingest && python -m kondratiev.export ../web/data/data.json
 cd ../web && npm install && npm run dev
 ```
-Os testes usam respostas HTTP falsas só para validar o código; esses dados nunca vão ao site.
+Os testes usam respostas HTTP e dados sintéticos só para validar o código; nada disso vai ao site.
 
-*Leitura de contexto baseada em dados públicos. Não é recomendação de investimento.*
+*Leitura de contexto baseada em dados públicos. Não é recomendação de investimento. A evidência estatística sobre ondas de Kondratiev é limitada.*

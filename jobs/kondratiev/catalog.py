@@ -79,6 +79,20 @@ def _build():
                     role="valuation_excess",
                     rationale="Preço sobre lucros reais médios de 10 anos, desde 1871: mede o descolamento entre o capital financeiro e a produção (frenesi de Perez).",
                     source_url="https://shillerdata.com/", stale_after_days=75))
+    out.append(dict(id="shiller_real_tr", scope="context", perspective="perez", layer="regime", source="shiller",
+                    code="Return Price", name="S&P 500 — retorno total real (Shiller)", country="USA", unit="índice",
+                    frequency="monthly", role="context", rationale="Base dos retornos históricos por nível de CAPE.",
+                    source_url="https://shillerdata.com/", stale_after_days=75))
+    out.append(dict(id="sec_ai_capex_ocf", scope="usa", perspective="perez", layer="regime", source="edgar", code="capex_ocf",
+                    name="Capex sobre fluxo de caixa operacional — 5 grandes de tecnologia (EUA)", country="USA", unit="%",
+                    frequency="quarterly", role="valuation_excess",
+                    rationale="Quanto do caixa operacional de Microsoft, Alphabet, Amazon, Meta e Oracle vira investimento em ativos (data centers, chips): mede a intensidade do ciclo de investimento em IA, a fase de instalação de Perez.",
+                    source_url="https://www.sec.gov/edgar/sec-api-documentation", stale_after_days=150))
+    out.append(dict(id="sec_ai_capex", scope="usa", perspective="perez", layer="regime", source="edgar", code="capex",
+                    name="Capex de 12 meses — 5 grandes de tecnologia (EUA)", country="USA", unit="US$ bilhões",
+                    frequency="quarterly", role="valuation_excess",
+                    rationale="Investimento total em ativos fixos de Microsoft, Alphabet, Amazon, Meta e Oracle nos últimos quatro trimestres.",
+                    source_url="https://www.sec.gov/edgar/sec-api-documentation", stale_after_days=150))
     out.append(dict(id="fred_usrec", scope="context", perspective="minsky", layer="regime", source="fred", code="USREC",
                     name="Recessões dos EUA (NBER)", country="USA", unit="0/1", frequency="monthly", role="context",
                     rationale="Datação oficial das recessões americanas, usada apenas para marcar os gráficos.",

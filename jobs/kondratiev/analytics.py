@@ -45,7 +45,7 @@ SCORING = {
     "ust_3m": (1, "level", "diff"), "ust_2y": (1, "level", "diff"),
     "bis_us_credit_gap": (1, "level", "diff"), "bis_us_dsr": (1, "level", "diff"),
     # Perez: long-run equity valuation
-    "shiller_cape": (1, "level", "diff"),
+    "shiller_cape": (1, "level", "diff"), "sec_ai_capex_ocf": (1, "level", "diff"), "sec_ai_capex": (1, "chg12", "pct"),
 }
 
 # publication lag (months) before a reading can be used, and max age (months) before it is considered stale
@@ -217,3 +217,60 @@ def composite(members, frequencies, last_month):
 def key_to_label(key):
     y, m = divmod(key, 12)
     return f"{y}-{m + 1:02d}"
+
+
+def backtest(index_history, recessions, threshold=None, window=24):
+    """How did an index behave before U.S. recessions? In-sample, on revised (not point-in-time) data.
+    index_history: [(YYYY-MM, value)]; recessions: [(start_iso, end_iso)]. Returns None when there is too little overlap."""
+    keys = [int(l[:4]) * 12 + int(l[5:7]) - 1 for l, _ in index_history]
+    vals = [v for _, v in index_history]
+    if len(keys) < 36:
+        return None
+    pos = dict(zip(keys, vals))
+    starts = [int(a[:4]) * 12 + int(a[5:7]) - 1 for a, _ in recessions]
+    starts = [s for s in starts if keys[0] + 12 <= s <= keys[-1]]
+    if not starts:
+        return None
+    pre = [pos[k] for s in starts for k in range(s - window, s) if k in pos]
+    in_rec = {k for a, b in recessions for k in range(int(a[:4]) * 12 + int(a[5:7]) - 1, int(b[:4]) * 12 + int(b[5:7]))}
+    calm = [v for k, v in pos.items() if k not in in_rec]
+    out = {"recessions": len(starts), "avg_before": round(sum(pre) / len(pre), 1) if pre else None,
+           "avg_other": round(sum(calm) / len(calm), 1) if calm else None, "window_months": window}
+    if out["avg_before"] is not None and out["avg_other"] is not None:
+        out["difference"] = round(out["avg_before"] - out["avg_other"], 1)
+    if threshold is not None:
+        hits = sum(1 for s in starts if any(pos.get(k, -1) >= threshold for k in range(s - window, s)))
+        flagged = [k for k, v in pos.items() if v >= threshold and k not in in_rec]
+        false = [k for k in flagged if not any(k < s <= k + window for s in starts)]
+        out.update(threshold=threshold, hits=hits, hit_rate=round(hits / len(starts) * 100),
+                   false_alarm_rate=round(len(false) / len(flagged) * 100) if flagged else None, flagged_months=len(flagged))
+    return out
+
+
+def forward_returns(valuation, price, horizons=(12, 60, 120), neighborhood=10):
+    """Historical real annualized returns after months in which `valuation` stood near its current percentile.
+    valuation / price: [(date, value)] monthly. Descriptive and in-sample; windows overlap, so the effective sample is small."""
+    vk = {month_key(d): v for d, v in valuation if v > 0}
+    pk = {month_key(d): v for d, v in price if v > 0}
+    if not vk or not pk:
+        return None
+    cur_key = max(vk)
+    cur = vk[cur_key]
+    ranked = sorted(vk.values())
+    cur_pct = percentile_of(ranked, cur)
+    lo, hi = max(0, cur_pct - neighborhood), min(100, cur_pct + neighborhood)
+    near = {k for k, v in vk.items() if lo <= percentile_of(ranked, v) <= hi}
+    out = {"current": round(cur, 1), "current_date": key_to_label(cur_key), "percentile": round(cur_pct, 1),
+           "band": [round(lo), round(hi)], "since": key_to_label(min(vk)), "horizons": []}
+    for h in horizons:
+        def stats(keys):
+            r = sorted((pk[k + h] / pk[k]) ** (12 / h) - 1 for k in keys if k in pk and k + h in pk)
+            if len(r) < 12:
+                return None
+            q = lambda p: r[min(len(r) - 1, int(p * len(r)))]
+            return {"n": len(r), "median": round(q(0.5) * 100, 1), "p10": round(q(0.1) * 100, 1), "p90": round(q(0.9) * 100, 1),
+                    "negative_share": round(sum(1 for x in r if x < 0) / len(r) * 100)}
+        near_stats, all_stats = stats(near), stats(vk.keys())
+        if near_stats and all_stats:
+            out["horizons"].append({"years": h // 12, "similar": near_stats, "all": all_stats})
+    return out if out["horizons"] else None

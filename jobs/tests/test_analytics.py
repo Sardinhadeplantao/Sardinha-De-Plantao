@@ -107,3 +107,29 @@ def test_export_build_runs_end_to_end(tmp_path):
     ind = next(i for i in data["indicators"] if i["id"] == "fred_hy")
     assert len(ind["history"]) == len(ind["trend"]) and ind["stats"]["percentile"] is not None
     assert all(i["scope"] != "context" for i in data["indicators"])
+
+
+def test_backtest_finds_signal_before_recessions():
+    labels = [f"{2000 + m // 12}-{m % 12 + 1:02d}" for m in range(240)]
+    vals = [80 if 50 <= m < 72 or 150 <= m < 173 else 30 for m in range(240)]  # elevated in the 2 years before each recession
+    rec = [("2006-01-01", "2006-12-01"), ("2014-06-01", "2015-01-01")]
+    out = A.backtest(list(zip(labels, vals)), rec, threshold=60)
+    assert out["recessions"] == 2 and out["difference"] > 20 and out["hit_rate"] == 100
+
+
+def test_forward_returns_uses_only_realized_windows():
+    cape = monthly([10 + (i % 20) for i in range(400)], (1980, 1))
+    price = monthly([100 * 1.005 ** i for i in range(400)], (1980, 1))
+    out = A.forward_returns(cape, price)
+    assert out and out["horizons"][0]["similar"]["median"] > 0
+    ten = next(h for h in out["horizons"] if h["years"] == 10)
+    assert abs(ten["all"]["median"] - ((1.005 ** 12 - 1) * 100)) < 0.5
+
+
+def test_alerts_detect_state_change_and_curve_inversion():
+    from kondratiev import alerts
+    prev = {"indices": {"usa": {"minsky": {"state": "Fragilidade média", "value": 50}}}, "indicators": [{"id": "fred_t10y2y", "value": 0.2}]}
+    new = {"indices": {"usa": {"minsky": {"state": "Fragilidade alta", "value": 70}}}, "indicators": [{"id": "fred_t10y2y", "value": -0.1}], "runs": []}
+    items = alerts.compare(prev, new)
+    assert len(items) == 2 and "Fragilidade alta" in items[0] and "inverteu" in items[1]
+    assert alerts.compare(new, new) == []
