@@ -5,8 +5,8 @@ Tudo é descritivo e reproduzível. Nada aqui é previsão nem recomendação de
 ## 1. Dados
 Fontes oficiais: FRED (EUA), Tesouro dos EUA, Banco Mundial, BIS, Shiller, SEC EDGAR e Ember (eletricidade mensal, EUA e mundo).
 Para os EUA, séries anuais do Banco Mundial que atrasam 1 a 3 anos foram trocadas por equivalentes trimestrais ou mensais: inflação e deflator (CPI e GDPDEF do FRED),
-PIB real (GDPC1), crédito ao setor privado (crédito total do BIS), capitalização de bolsa (indicador Buffett do Fed Z.1), P&D (investimento em P&D do BEA sobre o PIB),
-capital dos bancos (patrimônio sobre ativos, EQTA) e novos negócios (pedidos de abertura de empresas, Census BFS). Renováveis, eólica + solar e intensidade de CO₂
+PIB real (GDPC1), crédito ao setor privado (crédito total do BIS), capitalização de bolsa (indicador Buffett do Fed Z.1), P&D (investimento em P&D do BEA sobre o PIB)
+e novos negócios (pedidos de abertura de empresas, Census BFS). Renováveis, eólica + solar e intensidade de CO₂
 da eletricidade vêm do Ember, com atraso de cerca de 2 meses. Cada série traz data de referência, data de coleta e frescor.
 Frescor: **ok** (dentro do prazo da série), **atrasado** (até 2x o prazo), **obsoleto** (acima disso). Os prazos consideram como cada fonte data e publica:
 mensais do FRED 90 dias (a referência é o 1º dia do mês e a divulgação sai semanas depois), trimestrais 270 a 280 dias, anuais do Banco Mundial 900 dias.

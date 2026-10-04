@@ -37,7 +37,7 @@ SCORING = {
     # fresher official substitutes and cross-source series (v0.5)
     "fred_gdpc1": (1, "chg12", "pct"), "fred_gdpdef": (1, "chg12", "pct"),
     "fred_bfs": (1, "chg12", "pct"), "fred_rnd": (1, "chg60", "pct"),
-    "fred_eqta": (-1, "level", "diff"), "bis_us_total_credit": (1, "level", "diff"), "x_real_fedfunds": (1, "level", "diff"),
+    "bis_us_total_credit": (1, "level", "diff"), "x_real_fedfunds": (1, "level", "diff"),
     **{f"ember_{a}_{k}": (1, "chg12", "diff") for a in ("usa", "world") for k in ("renew", "windsolar")},
     **{f"ember_{a}_co2int": (-1, "chg12", "pct") for a in ("usa", "world")},
     # Freeman: diffusion of the new energy paradigm (renewables up, carbon and energy intensity down)
@@ -63,7 +63,7 @@ GROUPS = {
     **{k: "juros" for k in ("fred_fedfunds", "fred_dfii10", "ust_5y", "ust_10y", "ust_30y", "wb_usa_fr_inr_rinr")},
     **{k: "atividade" for k in ("fred_gdpc1", "fred_indpro", "fred_unrate", "wb_usa_ny_gdp_mktp_kd_zg", "wb_wld_ny_gdp_mktp_kd_zg")},
     **{k: "alavancagem" for k in ("wb_usa_fs_ast_prvt_gd_zs", "wb_wld_fs_ast_prvt_gd_zs", "wb_usa_fs_ast_doms_gd_zs",
-                                  "wb_usa_fb_bnk_capa_zs", "bis_us_credit_gap", "bis_us_total_credit", "fred_eqta", "bis_us_dsr", "fred_tdsp", "fred_m2sl")},
+                                  "wb_usa_fb_bnk_capa_zs", "bis_us_credit_gap", "bis_us_total_credit", "bis_us_dsr", "fred_tdsp", "fred_m2sl")},
     **{k: "preço do risco" for k in ("fred_baa10y", "fred_nfci", "fred_mortgage30us")},
     **{k: "curva e política" for k in ("fred_t10y2y", "fred_t10y3m", "ust_3m", "ust_2y", "x_real_fedfunds")},
     **{k: "valuation" for k in ("wb_usa_cm_mkt_lcap_gd_zs", "wb_wld_cm_mkt_lcap_gd_zs", "wb_usa_cm_mkt_trad_gd_zs",

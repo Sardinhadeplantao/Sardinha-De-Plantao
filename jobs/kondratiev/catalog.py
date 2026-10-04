@@ -46,7 +46,6 @@ _FRED = [
     ("fred_gdpdef", "kondratiev", "regime", "GDPDEF", "Deflator do PIB", "índice 2017=100", "quarterly", 200, "Medida ampla de preços: sobe na expansão, desacelera na contração longa."),
     ("fred_bfs", "schumpeter", "regime", "BABATOTALSAUS", "Pedidos de abertura de empresas", "pedidos por mês", "monthly", 90, "Novos negócios são o canal da destruição criadora de Schumpeter: ondas de abertura acompanham clusters de inovação."),
     ("fred_rnd", "schumpeter", "structure", "Y694RC1Q027SBEA/GDP*100", "Investimento privado em P&D sobre o PIB", "% do PIB", "quarterly", 200, "Esforço privado de inovação medido pelas contas nacionais (BEA), atualizado a cada trimestre."),
-    ("fred_eqta", "minsky", "regime", "EQTA", "Capital próprio dos bancos sobre ativos", "%", "quarterly", 200, "Colchão dos bancos contra perdas: quanto menor, mais frágil o sistema."),
     ("fred_sp500", "perez", "timing", "SP500", "S&P 500", "pontos", "daily", 7, "Índice de ações das 500 maiores empresas americanas; também atualiza o CAPE quando o arquivo de Shiller atrasa."),
     ("fred_nfci", "minsky", "timing", "NFCI", "Condições financeiras (Chicago Fed)", "índice", "weekly", 14, "Acima de zero: condições mais apertadas que a média histórica."),
     ("fred_tdsp", "minsky", "regime", "TDSP", "Serviço da dívida das famílias", "% da renda disponível", "quarterly", 280, "Peso da dívida sobre a renda: base da fragilidade financeira de Minsky."),
