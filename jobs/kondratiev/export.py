@@ -54,6 +54,7 @@ def derive(obs):
       Shiller's 10-year real earnings of the last published month (they move slowly).
     - x_real_fedfunds = FEDFUNDS - CPI 12-month inflation.
     - x_erp = 100 / CAPE - 10-year TIPS real yield (monthly averages).
+    - shiller_real_tr (context) is extended the same way, without dividends after Shiller's last month (~1-2 p.p./year less).
     - x_sahm = Sahm rule from monthly unemployment; x_curve_prob = New York Fed yield-curve recession probability."""
     out, notes = {}, {}
     cape, spx, cpi = obs.get("shiller_cape") or [], obs.get("fred_sp500") or [], obs.get("fred_cpiaucsl") or []
@@ -70,6 +71,17 @@ def derive(obs):
                 out["shiller_cape"] = list(cape) + ext
                 notes["shiller_cape"] = (f"Publicado por Shiller até {anchor_d.isoformat()[:7]}; de {ext[0][0].isoformat()[:7]} em diante, "
                                          "estimado com o S&P 500 e o CPI do FRED (lucros de 10 anos mantidos).")
+    tr = obs.get("shiller_real_tr") or []
+    if tr and spx and cpi:  # real total return, extended like the CAPE (price only after Shiller's last month)
+        sp_m = dict(_monthly_mean(spx))
+        anchor_d, anchor_v = tr[-1]
+        anchor_d = date(anchor_d.year, anchor_d.month, 1)
+        sp0, cpi0 = sp_m.get(anchor_d), A.value_at_or_before(cpi, anchor_d)
+        if sp0 and cpi0:
+            ext = [(d, anchor_v * (v / sp0) * (cpi0 / A.value_at_or_before(cpi, d))) for d, v in sorted(sp_m.items())
+                   if d > anchor_d and A.value_at_or_before(cpi, d)]
+            if ext:
+                out["shiller_real_tr"] = list(tr) + ext
     fed, cpi_m = obs.get("fred_fedfunds") or [], A.to_monthly(cpi, "monthly")
     if fed and cpi_m:
         infl = {date(d.year, d.month, 1): v for d, v in A.transform(cpi_m, "chg12", "pct")}

@@ -189,6 +189,9 @@ def test_derive_extends_cape_and_crosses_sources():
     erp = dict(out["x_erp"])
     assert abs(erp[date(2024, 9, 1)] - (100 / 35.0 - 2.0)) < 1e-9
     assert abs(erp[date(2024, 10, 1)] - (100 / 38.5 - 2.2)) < 1e-9
+    obs["shiller_real_tr"] = [(date(2024, 9, 1), 1000.0)]
+    tr = export.derive(obs)[0]["shiller_real_tr"]
+    assert tr[-1] == (date(2024, 10, 1), 1100.0)                                           # extended with price and CPI
 
 
 def test_derive_skips_missing_inputs():

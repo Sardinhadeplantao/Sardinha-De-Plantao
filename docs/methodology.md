@@ -15,6 +15,8 @@ Recessões marcadas nos gráficos vêm do NBER (série USREC do FRED).
 ## 1b. Séries calculadas (cruzamento de fontes)
 - **CAPE estendido:** o arquivo de Shiller atrasa meses. Depois do último mês dele, o CAPE é estendido com `CAPE × (S&P 500 do mês / S&P 500 base) × (CPI base / CPI do mês)`,
   usando médias mensais do S&P 500 e o CPI do FRED. Supõe lucros reais de 10 anos constantes no intervalo (variam devagar); o detalhe da série avisa.
+- **Retorno total real do S&P 500 estendido:** mesma regra do CAPE, usada nos retornos históricos; após o último mês de Shiller entra só a variação de preço
+  (sem dividendos, cerca de 1 a 2 p.p. ao ano a menos).
 - **Juro real do Fed:** Fed funds menos inflação de 12 meses do CPI.
 - **Prêmio de risco das ações:** rendimento do CAPE (100 / CAPE) menos o juro real de 10 anos (TIPS). Quanto menor, mais caras as ações frente aos títulos.
 

@@ -181,7 +181,7 @@ export function AnalogsSection({ analogs }: { analogs: Analogs | null }) {
         </div>
         <p className="mt-2 text-xs text-slate-300">Em {recs} de {analogs.matches.length} períodos parecidos houve recessão nos 2 anos seguintes.</p>
         <p className="mt-1 text-[11px] text-slate-500">
-          Distância = quão diferente era a combinação das óticas (0 = idêntica). Retorno real anualizado do S&P 500 com dividendos (Shiller); “—” quando ainda não há dado.
+          Distância = quão diferente era a combinação das óticas (0 = idêntica). Retorno real anualizado do S&P 500 com dividendos (Shiller; depois do último mês publicado por Shiller, só a variação de preço do S&P 500 descontada a inflação). “—” quando ainda não há dado.
           Poucos casos, dentro da amostra: é contexto histórico, não previsão nem recomendação.
         </p>
       </div>

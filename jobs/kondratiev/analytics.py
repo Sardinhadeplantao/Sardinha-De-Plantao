@@ -319,7 +319,7 @@ def sahm_rule(unrate):
     """Sahm rule on monthly unemployment [(date, %)]: 3-month average minus the lowest 3-month average of the
     previous 12 months. A reading >= 0.5 has marked the start of every U.S. recession since 1970."""
     avg = [(unrate[i][0], sum(v for _, v in unrate[i - 2:i + 1]) / 3) for i in range(2, len(unrate))]
-    return [(d, v - min(a for _, a in avg[i - 12:i])) for i, (d, v) in enumerate(avg) if i >= 12]
+    return [(d, round(v - min(a for _, a in avg[i - 12:i]), 4) + 0.0) for i, (d, v) in enumerate(avg) if i >= 12]  # + 0.0: no -0.0
 
 
 def curve_probability(spread):
