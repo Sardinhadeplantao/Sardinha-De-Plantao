@@ -13,7 +13,7 @@ def get_text(*a, **k):
     return _get(*a, parse=lambda r: r.text, **k)
 
 
-def _get(url, params=None, headers=None, min_interval=0.0, retries=4, session=None, timeout=30, parse=None):
+def _get(url, params=None, headers=None, min_interval=0.0, retries=2, session=None, timeout=20, parse=None):
     """GET a document. `min_interval` spaces calls to the same host (rate limit)."""
     host = url.split("/")[2]
     s = session or requests

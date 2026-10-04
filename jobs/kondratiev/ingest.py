@@ -27,6 +27,9 @@ def run(engine, catalog=CATALOG, sources=SOURCES, session=None):
                                    ["series_id", "ref_date", "vintage"])
             except Exception as exc:  # keep going: last stored data stays, flagged by freshness
                 errors.append(f"{s['id']}: {exc}")
+                if len(errors) >= 2 and total == 0:  # source looks unreachable: stop instead of waiting on every series
+                    errors.append("fonte abortada após falhas consecutivas")
+                    break
         status = "ok" if not errors else ("failed" if total == 0 else "partial")
         failures += bool(errors)
         _log(engine, name, started, status, total, errors)
