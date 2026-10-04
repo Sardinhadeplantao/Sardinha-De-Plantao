@@ -3,12 +3,15 @@ import sys
 from datetime import datetime, timezone
 from kondratiev import db
 from kondratiev.catalog import CATALOG
-from kondratiev.sources import fred, worldbank
+import os
+from kondratiev.sources import fred, treasury, worldbank
 
-SOURCES = {"fred": fred, "worldbank": worldbank}
+SOURCES = {"fred": fred, "treasury": treasury, "worldbank": worldbank}
 
 
 def run(engine, catalog=CATALOG, sources=SOURCES, session=None):
+    if not os.environ.get("FRED_API_KEY"):  # FRED is optional: without a key its series are simply not tracked
+        catalog = [s for s in catalog if s["source"] != "fred"]
     db.upsert(engine, db.series_catalog, catalog, ["id"])
     failures = 0
     for name in sorted({s["source"] for s in catalog}):

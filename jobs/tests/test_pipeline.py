@@ -49,14 +49,33 @@ def test_ingest_end_to_end_and_idempotent(engine):
     assert db.latest_ref_date(engine, "w1") == date(2023, 12, 31)
 
 
-def test_failed_source_is_isolated_and_logged(engine, monkeypatch):
-    monkeypatch.delenv("FRED_API_KEY")
-    failures = ingest.run(engine, CAT, session=FakeSession())
+def test_failed_source_is_isolated_and_logged(engine):
+    class Broken:
+        @staticmethod
+        def fetch(series, session=None): raise RuntimeError("source down")
+    cat = [dict(CAT[0], source="broken"), CAT[1]]
+    failures = ingest.run(engine, cat, sources={"broken": Broken, "worldbank": worldbank}, session=FakeSession())
     assert failures == 1
-    assert db.latest_ref_date(engine, "w1") is not None  # World Bank still ingested
+    assert db.latest_ref_date(engine, "w1") is not None  # the other source still ingested
     with engine.connect() as c:
-        row = c.execute(select(db.runs).where(db.runs.c.source == "fred")).one()
-    assert row.status == "failed" and "FRED_API_KEY" in row.error
+        row = c.execute(select(db.runs).where(db.runs.c.source == "broken")).one()
+    assert row.status == "failed" and "source down" in row.error
+
+
+def test_fred_skipped_without_key(engine, monkeypatch):
+    monkeypatch.delenv("FRED_API_KEY")
+    assert ingest.run(engine, CAT, session=FakeSession()) == 0
+    assert db.latest_ref_date(engine, "f1") is None and db.latest_ref_date(engine, "w1") is not None
+
+
+def test_treasury_parses_csv_and_skips_blank():
+    from kondratiev.sources import treasury
+    class S:
+        def get(self, *a, **k):
+            return type("R", (), {"status_code": 200, "text": "Date,2 Yr,10 Yr\n10/01/2026,3.9,4.1\n09/30/2026,N/A,\n",
+                                  "raise_for_status": lambda s: None})()
+    rows = treasury.fetch({"code": "10 Yr"}, session=S(), first_year=2026)
+    assert rows == [(date(2026, 10, 1), 4.1, False)]
 
 
 def test_api_key_never_appears_in_error(monkeypatch):

@@ -1,6 +1,4 @@
-import { loadIndicators, loadRuns, type Indicator } from "@/lib/db";
-
-export const dynamic = "force-dynamic";
+import { loadData, type Indicator } from "@/lib/data";
 
 const PERSPECTIVES: Record<string, string> = {
   kondratiev: "Kondratiev — preços, juros e produção", schumpeter: "Schumpeter — inovação", perez: "Perez — capital financeiro",
@@ -9,6 +7,13 @@ const PERSPECTIVES: Record<string, string> = {
 const LAYERS: Record<string, string> = { structure: "estrutura", regime: "regime", timing: "timing" };
 const BADGE = { ok: "bg-emerald-900 text-emerald-300", atrasado: "bg-amber-900 text-amber-300", obsoleto: "bg-red-900 text-red-300" };
 const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+function Spark({ h }: { h: [string, number][] }) {
+  if (h.length < 2) return null;
+  const v = h.map((p) => p[1]), min = Math.min(...v), max = Math.max(...v), r = max - min || 1;
+  const pts = v.map((y, k) => `${(k / (v.length - 1)) * 200},${28 - ((y - min) / r) * 26}`).join(" ");
+  return <svg viewBox="0 0 200 30" className="mt-2 h-8 w-full"><polyline points={pts} fill="none" stroke="#38bdf8" strokeWidth="1.5" /></svg>;
+}
 
 function Card({ i }: { i: Indicator }) {
   const delta = i.value !== null && i.previous !== null ? i.value - i.previous : null;
@@ -23,33 +28,33 @@ function Card({ i }: { i: Indicator }) {
       ) : (
         <>
           <p className="mt-2 text-2xl font-semibold">{fmt(i.value)} <span className="text-sm font-normal text-slate-400">{i.unit}</span></p>
+          <Spark h={i.history} />
           {delta !== null && <p className="text-xs text-slate-400">{delta >= 0 ? "▲" : "▼"} {fmt(Math.abs(delta))} vs. observação anterior</p>}
-          <p className="mt-2 text-xs text-slate-400">Referência: {i.refDate} · coletado em {i.asOf?.slice(0, 10)}</p>
+          <p className="mt-2 text-xs text-slate-400">Referência: {i.ref_date} · coletado em {i.as_of?.slice(0, 10)}</p>
         </>
       )}
       <p className="mt-2 text-xs text-slate-500">{i.rationale}</p>
       <p className="mt-2 text-xs text-slate-500">
         {i.source.toUpperCase()} · {i.frequency} · {LAYERS[i.layer]} ·{" "}
-        {i.sourceUrl && <a className="underline" href={i.sourceUrl} target="_blank" rel="noreferrer">{i.code}</a>}
+        {i.source_url && <a className="underline" href={i.source_url} target="_blank" rel="noreferrer">{i.code}</a>}
       </p>
     </div>
   );
 }
 
-export default async function Home() {
-  let indicators: Indicator[] = [], runs: Awaited<ReturnType<typeof loadRuns>> = [], error: string | null = null;
-  try { [indicators, runs] = await Promise.all([loadIndicators(), loadRuns()]); }
-  catch { error = "Não foi possível ler o banco de dados. Verifique DATABASE_URL e se a ingestão já criou as tabelas."; }
+export default function Home() {
+  const { indicators, runs, generated_at } = loadData();
+  const error: string | null = null;
   const groups = Object.keys(PERSPECTIVES).map((p) => [p, indicators.filter((i) => i.perspective === p)] as const).filter(([, l]) => l.length);
 
   return (
     <>
       <h1 className="text-2xl font-bold">Kondratiev Monitor</h1>
-      <p className="mt-1 text-sm text-slate-400">Ciclos econômicos de longa duração sob 5 óticas, com dados oficiais e frescor visível.</p>
+      <p className="mt-1 text-sm text-slate-400">Ciclos econômicos de longa duração sob 5 óticas, com dados oficiais e frescor visível.{generated_at && <> Última atualização: {generated_at.slice(0, 16).replace("T", " ")} UTC.</>}</p>
       {error && <p className="mt-6 rounded border border-red-800 bg-red-950 p-3 text-sm text-red-300">{error}</p>}
       {!error && indicators.length === 0 && (
         <p className="mt-6 rounded border border-slate-700 p-3 text-sm text-slate-300">
-          Banco vazio. Rode a ingestão (<code>python -m kondratiev.ingest</code> em <code>jobs/</code>) para carregar dados reais.
+          Ainda não há dados. A primeira atualização automática (aba Actions do GitHub) coleta os dados reais das fontes oficiais.
         </p>
       )}
       {groups.map(([p, list]) => (
