@@ -1,12 +1,22 @@
-# Metodologia (versão 0.4)
+# Metodologia (versão 0.5)
 
 Tudo é descritivo e reproduzível. Nada aqui é previsão nem recomendação de investimento.
 
 ## 1. Dados
-Fontes oficiais: FRED (EUA), Tesouro dos EUA, Banco Mundial, BIS, Shiller e SEC EDGAR. Cada série traz data de referência, data de coleta e frescor.
+Fontes oficiais: FRED (EUA), Tesouro dos EUA, Banco Mundial, BIS, Shiller, SEC EDGAR e Ember (eletricidade mensal, EUA e mundo).
+Para os EUA, séries anuais do Banco Mundial que atrasam 1 a 3 anos foram trocadas por equivalentes trimestrais ou mensais: inflação e deflator (CPI e GDPDEF do FRED),
+PIB real (GDPC1), crédito ao setor privado (crédito total do BIS), capitalização de bolsa (indicador Buffett do Fed Z.1), P&D (investimento em P&D do BEA sobre o PIB),
+capital dos bancos (patrimônio sobre ativos, EQTA) e novos negócios (pedidos de abertura de empresas, Census BFS). Renováveis, eólica + solar e intensidade de CO₂
+da eletricidade vêm do Ember, com atraso de cerca de 2 meses. Cada série traz data de referência, data de coleta e frescor.
 Frescor: **ok** (dentro do prazo da série), **atrasado** (até 2x o prazo), **obsoleto** (acima disso). Os prazos consideram como cada fonte data e publica:
 mensais do FRED 90 dias (a referência é o 1º dia do mês e a divulgação sai semanas depois), trimestrais 270 a 280 dias, anuais do Banco Mundial 900 dias.
 Recessões marcadas nos gráficos vêm do NBER (série USREC do FRED).
+
+## 1b. Séries calculadas (cruzamento de fontes)
+- **CAPE estendido:** o arquivo de Shiller atrasa meses. Depois do último mês dele, o CAPE é estendido com `CAPE × (S&P 500 do mês / S&P 500 base) × (CPI base / CPI do mês)`,
+  usando médias mensais do S&P 500 e o CPI do FRED. Supõe lucros reais de 10 anos constantes no intervalo (variam devagar); o detalhe da série avisa.
+- **Juro real do Fed:** Fed funds menos inflação de 12 meses do CPI.
+- **Prêmio de risco das ações:** rendimento do CAPE (100 / CAPE) menos o juro real de 10 anos (TIPS). Quanto menor, mais caras as ações frente aos títulos.
 
 ## 2. Estatísticas de cada indicador
 - **Nível ou variação:** séries que crescem ao longo do tempo (índices de preço, produção, M2, Nasdaq, capex, patentes) são lidas pela **variação** de 12 meses
@@ -23,7 +33,7 @@ Recessões marcadas nos gráficos vêm do NBER (série USREC do FRED).
 3. Se a polaridade é negativa, inverte-se (100 menos o percentil).
 4. **Subgrupos equilibrados:** o índice é a média dos subgrupos, e cada subgrupo é a média dos seus indicadores (`GROUPS`). Assim, cinco séries de juros, muito
    parecidas entre si, não pesam mais que os preços ou a atividade. Subgrupos: Kondratiev = preços, juros, atividade; Minsky = alavancagem, preço do risco,
-   curva e política; Perez = valuation, investimento. Exige pelo menos 3 indicadores no mês, senão "dados insuficientes".
+   curva e política (inclui o juro real do Fed); Perez = valuation, investimento. Exige pelo menos 3 indicadores no mês, senão "dados insuficientes".
 5. Defasagem de publicação assumida: anual 12 meses, trimestral 3, mensal 1. Uma leitura sai do cálculo quando fica velha demais: anuais 36 meses após o fim
    do ano de referência, trimestrais 12 meses após o trimestre, mensais 4 meses e diárias ou semanais 3 meses.
 6. **Data do índice:** cada índice mostra o mês do seu último valor. Se esse mês tem mais de 3 meses, o índice é marcado como desatualizado.
@@ -57,6 +67,8 @@ A cada atualização na branch principal, compara-se com o `data.json` publicado
 o hiato de crédito do BIS cruza 10 p.p., ou alguma fonte falha na coleta. Quando a versão da metodologia muda, mudanças de estado não geram alerta (refletem regras novas, não dados).
 
 ## 8. Histórico de versões
+- 0.5: fontes mais frescas para os EUA (FRED, BIS e Ember no lugar de séries anuais do Banco Mundial); CAPE estendido até o mês atual; juro real do Fed e prêmio de risco
+  das ações; novo layout com resumo, composição por subgrupo, cruzamentos e tabela pesquisável.
 - 0.4: subgrupos equilibrados; leitura por variação para séries com tendência; data e aviso de desatualização dos índices; extremos atuais; indicador Buffett (Fed Z.1) e Nasdaq no lugar
   da variação anual de ações do Banco Mundial (parada em 2022); leituras anuais saem do índice 36 meses após o ano de referência; prazos de frescor ajustados ao calendário de publicação.
 - 0.3: validação histórica, valuation, EDGAR, alertas.
@@ -65,5 +77,6 @@ o hiato de crédito do BIS cruza 10 p.p., ou alguma fonte falha na coleta. Quand
 ## 9. Limites que o sistema declara
 - Há poucos ciclos longos completos (2,5 a 3): qualquer inferência sobre fases tem evidência estatística limitada.
 - A datação da "6ª onda" é interpretativa.
-- Os indicadores do Banco Mundial têm atraso de 1 a 5 anos; o arquivo público do Shiller pode ficar meses sem atualização.
+- Os indicadores do Banco Mundial têm atraso de 1 a 5 anos; o arquivo público do Shiller pode ficar meses sem atualização
+  (o CAPE é estendido por cálculo, mas os lucros só se atualizam quando o arquivo é atualizado).
 - A visão global tem menos indicadores; quando há menos de 3 por ótica, o sistema mostra "dados insuficientes".

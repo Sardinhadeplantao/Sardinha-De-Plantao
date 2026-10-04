@@ -235,4 +235,7 @@ if __name__ == "__main__":
         print(f"run {r['source']}: {r['status']} rows={r['rows']} {(r['error'] or '')[:1500]}")
     print("backtest:", json.dumps(data["backtest"], ensure_ascii=False))
     print("valuation:", json.dumps(data["valuation"], ensure_ascii=False))
+    from kondratiev.catalog import CATALOG
+    got = {i["id"] for i in data["indicators"]}
+    print("missing:", [c["id"] for c in CATALOG if c["id"] not in got])
     print(f"exported {len(data['indicators'])} indicators, {len(data['recessions'])} recessions")
