@@ -78,15 +78,19 @@ def _calendar_quarter(d):
 
 
 def fetch(series, since=None, session=None):
-    per_company = {}
+    per_company, notes = {}, []
     for name, cik in COMPANIES.items():
         gaap = _facts(cik, session)["facts"]["us-gaap"]
-        cap = ttm(discrete_quarters(gaap[CAPEX]["units"]["USD"]))
-        ocf = ttm(discrete_quarters(gaap[OCF]["units"]["USD"]))
+        raw = {t: gaap.get(t, {}).get("units", {}).get("USD", []) for t in (CAPEX, OCF)}
+        q = {t: discrete_quarters(v) for t, v in raw.items()}
+        cap, ocf = ttm(q[CAPEX]), ttm(q[OCF])
         per_company[name] = {_calendar_quarter(d): (cap[d], ocf[d]) for d in cap if d in ocf}
+        last = max(per_company[name]) if per_company[name] else None
+        notes.append(f"{name}: raw capex/ocf={len(raw[CAPEX])}/{len(raw[OCF])}, quarters={len(q[CAPEX])}/{len(q[OCF])}, "
+                     f"ttm={len(cap)}/{len(ocf)}, usable={len(per_company[name])}, last={last}")
     quarters = set.intersection(*(set(v) for v in per_company.values()))
     if not quarters:
-        raise RuntimeError("no common quarters across the five companies")
+        raise RuntimeError("no common quarters across the five companies | " + " | ".join(notes))
     out = []
     for q in sorted(quarters):
         capex = sum(per_company[c][q][0] for c in per_company)
