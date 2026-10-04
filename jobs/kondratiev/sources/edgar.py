@@ -10,7 +10,10 @@ from kondratiev.http import get_json
 
 COMPANIES = {"MSFT": 789019, "GOOGL": 1652044, "AMZN": 1018724, "META": 1326801, "ORCL": 1341439}
 CAPEX, OCF = "PaymentsToAcquirePropertyPlantAndEquipment", "NetCashProvidedByUsedInOperatingActivities"
-UA = os.environ.get("SEC_USER_AGENT") or "KondratievMonitor/0.3 (+https://github.com/Sardinhadeplantao/Sardinha-De-Plantao)"
+# The SEC requires a descriptive User-Agent with a contact address. The default uses the repository owner's public
+# GitHub no-reply address; set the SEC_USER_AGENT secret to override it with a monitored contact.
+UA = (os.environ.get("SEC_USER_AGENT") or "").strip() or \
+    "KondratievMonitor Sardinhadeplantao 209699569+Sardinhadeplantao@users.noreply.github.com"
 _cache: dict = {}
 
 

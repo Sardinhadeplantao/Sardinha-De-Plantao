@@ -115,8 +115,6 @@ if __name__ == "__main__":
     data = build(db.get_engine())
     with open(out, "w") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
-    print("backtest:", json.dumps(data["backtest"], ensure_ascii=False))
-    print("valuation:", json.dumps(data["valuation"], ensure_ascii=False))
     for scope, idx in data["indices"].items():
         for p, v in idx.items():
             print(f"{scope:6} {p:11} {v['state']}  value={v['value']}  n={v['n']}/{v['total']}")
@@ -124,4 +122,6 @@ if __name__ == "__main__":
         print(f"{i['id']:32} {len(i['history']):4} pts  latest={i['ref_date']}  value={i['value']}  score={i['score']}")
     for r in data["runs"][:8]:
         print(f"run {r['source']}: {r['status']} rows={r['rows']} {(r['error'] or '')[:400]}")
+    print("backtest:", json.dumps(data["backtest"], ensure_ascii=False))
+    print("valuation:", json.dumps(data["valuation"], ensure_ascii=False))
     print(f"exported {len(data['indicators'])} indicators, {len(data['recessions'])} recessions")
