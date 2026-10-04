@@ -114,7 +114,7 @@ def _recessions(hist):
 
 def _index_summary(index, rows, drivers_raw, series, last_month, total):
     if not series:
-        return {"label": A.INDEX_LABELS[index], "state": None, "value": None, "n": 0, "total": total, "history": [],
+        return {"label": A.INDEX_LABELS[index], "state": None, "value": None, "n": 0, "total": total, "history": [], "groups": [],
                 "drivers": [], "as_of": None, "stale": False,
                 "summary": f"Dados insuficientes: menos de {A.MIN_MEMBERS} indicadores com histórico utilizável."}
     values, keys = [v for _, v, _ in series], [k for k, _, _ in series]
@@ -134,8 +134,13 @@ def _index_summary(index, rows, drivers_raw, series, last_month, total):
         summary += f" Mais baixas: {fmt(bottom)}."
     if stale:
         summary += f" Atenção: último mês com dados suficientes foi {as_of}."
+    groups = {}
+    for d in drivers:
+        groups.setdefault(d["group"], []).append(d["score"])
+    group_scores = sorted(({"group": g, "score": round(sum(v) / len(v), 1), "n": len(v)} for g, v in groups.items()),
+                          key=lambda x: -x["score"])
     return {
-        "label": A.INDEX_LABELS[index], "state": state, "value": value, "n": series[-1][2], "total": total,
+        "label": A.INDEX_LABELS[index], "state": state, "value": value, "n": series[-1][2], "total": total, "groups": group_scores,
         "change_12m": round(value - past, 1) if past is not None else None, "as_of": as_of, "stale": stale,
         "history": [[A.key_to_label(k), round(v, 1), n] for k, v, n in series], "drivers": drivers, "summary": summary,
     }
@@ -204,6 +209,7 @@ def build(engine):
             "indicators": indicators, "indices": indices, "recessions": recessions,
             "backtest": {k: v for k, v in backtest.items() if v}, "valuation": valuation,
             "extremes": {scope: _extremes(indicators, scope) for scope in ("usa", "global")},
+            "thresholds": {p: [t for t, _ in A.STATES[p] if t > 0] for p in PERSPECTIVES},
             "runs": [{**r, "started_at": r["started_at"].isoformat(),
                       "finished_at": r["finished_at"].isoformat() if r["finished_at"] else None}
                      for r in _runs(engine)]}
