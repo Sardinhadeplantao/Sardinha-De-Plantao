@@ -63,7 +63,10 @@ function Card({ i, onPick }: { i: Indicator; onPick: (i: Indicator) => void }) {
     <button onClick={() => onPick(i)} className="rounded-lg border border-slate-800 bg-slate-900 p-4 text-left transition hover:border-sky-700 focus:outline-none focus:ring-2 focus:ring-sky-600">
       <div className="flex items-start justify-between gap-2">
         <h4 className="text-sm font-medium">{i.name}</h4>
-        {i.status && <span className={`shrink-0 rounded px-2 py-0.5 text-xs ${BADGE[i.status]}`}>{i.status}</span>}
+        <span className="flex shrink-0 gap-1">
+          {i.note && <span className="rounded bg-sky-950 px-2 py-0.5 text-xs text-sky-300" title={i.note}>{i.source === "derivado" ? "calculado" : "estimado"}</span>}
+          {i.status && <span className={`rounded px-2 py-0.5 text-xs ${BADGE[i.status]}`}>{i.status}</span>}
+        </span>
       </div>
       {i.value === null ? <p className="mt-3 text-sm text-slate-500">Sem dados.</p> : (
         <>

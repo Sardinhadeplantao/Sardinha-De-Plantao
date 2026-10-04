@@ -4,7 +4,7 @@ from kondratiev.catalog import CATALOG
 from kondratiev.ingest import SOURCES
 
 bad = 0
-for s in CATALOG:
+for s in (x for x in CATALOG if x["source"] != "derivado"):
     try:
         print("OK  ", s["id"], "->", SOURCES[s["source"]].validate(s))
     except Exception as exc:

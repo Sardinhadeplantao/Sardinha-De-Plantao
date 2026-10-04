@@ -40,6 +40,50 @@ def _view(row, hist):
             "history": [[d.isoformat(), _round(v)] for d, v in th], "trend": [_round(t) for t in trend]}
 
 
+def _monthly_mean(obs):
+    """Daily or weekly observations -> one (first-of-month date, mean) per month."""
+    acc = {}
+    for d, v in obs:
+        acc.setdefault(date(d.year, d.month, 1), []).append(v)
+    return [(k, sum(v) / len(v)) for k, v in sorted(acc.items())]
+
+
+def derive(obs):
+    """Cross-source series computed from official data. Returns ({id: observations}, {id: note}).
+    - shiller_cape is extended past the last published month: CAPE x (S&P 500 change) x (CPI change)⁻¹, keeping
+      Shiller's 10-year real earnings of the last published month (they move slowly).
+    - x_real_fedfunds = FEDFUNDS - CPI 12-month inflation.
+    - x_erp = 100 / CAPE - 10-year TIPS real yield (monthly averages)."""
+    out, notes = {}, {}
+    cape, spx, cpi = obs.get("shiller_cape") or [], obs.get("fred_sp500") or [], obs.get("fred_cpiaucsl") or []
+    if cape and spx and cpi:
+        sp_m = dict(_monthly_mean(spx))
+        cpi_h = [(d, v) for d, v in cpi]
+        anchor_d, anchor_v = cape[-1]
+        anchor_d = date(anchor_d.year, anchor_d.month, 1)
+        sp0, cpi0 = sp_m.get(anchor_d), A.value_at_or_before(cpi_h, anchor_d)
+        if sp0 and cpi0:
+            ext = [(d, anchor_v * (v / sp0) * (cpi0 / A.value_at_or_before(cpi_h, d))) for d, v in sorted(sp_m.items())
+                   if d > anchor_d and A.value_at_or_before(cpi_h, d)]
+            if ext:
+                out["shiller_cape"] = list(cape) + ext
+                notes["shiller_cape"] = (f"Publicado por Shiller até {anchor_d.isoformat()[:7]}; de {ext[0][0].isoformat()[:7]} em diante, "
+                                         "estimado com o S&P 500 e o CPI do FRED (lucros de 10 anos mantidos).")
+    fed, cpi_m = obs.get("fred_fedfunds") or [], A.to_monthly(cpi, "monthly")
+    if fed and cpi_m:
+        infl = {date(d.year, d.month, 1): v for d, v in A.transform(cpi_m, "chg12", "pct")}
+        out["x_real_fedfunds"] = [(date(d.year, d.month, 1), v - infl[date(d.year, d.month, 1)]) for d, v in fed
+                                  if date(d.year, d.month, 1) in infl]
+        notes["x_real_fedfunds"] = "Calculado: FEDFUNDS menos a inflação do CPI em 12 meses, mês a mês."
+    cape_all, tips = out.get("shiller_cape") or cape, obs.get("fred_dfii10") or []
+    if cape_all and tips:
+        tips_m = dict(_monthly_mean(tips))
+        out["x_erp"] = [(date(d.year, d.month, 1), 100 / v - tips_m[date(d.year, d.month, 1)]) for d, v in cape_all
+                        if v > 0 and date(d.year, d.month, 1) in tips_m]
+        notes["x_erp"] = "Calculado: rendimento de lucros do CAPE (100/CAPE) menos o juro real dos TIPS de 10 anos (média do mês)."
+    return {k: v for k, v in out.items() if v}, notes
+
+
 def _extremes(indicators, scope, limit=8):
     """Fresh indicators at the edges of their own history (percentile >= 95 or <= 5), most extreme first."""
     out = []
@@ -100,38 +144,47 @@ def _index_summary(index, rows, drivers_raw, series, last_month, total):
 def build(engine):
     with engine.connect() as c:
         cat = c.execute(select(db.series_catalog).order_by(db.series_catalog.c.perspective, db.series_catalog.c.id)).mappings().all()
-        indicators, members, freqs, recessions, latest_key, context = [], {}, {}, [], 0, {}
+        obs_by_id, as_of_by_id = {}, {}
         for s in cat:
-            obs = [(o["ref_date"], o["value"]) for o in c.execute(
+            obs_by_id[s["id"]] = [(o["ref_date"], o["value"]) for o in c.execute(
                 select(db.observations).where(db.observations.c.series_id == s["id"]).order_by(db.observations.c.ref_date)).mappings()]
-            as_of = c.execute(select(db.observations.c.as_of).where(db.observations.c.series_id == s["id"])
-                              .order_by(db.observations.c.ref_date.desc()).limit(1)).scalar()
-            if s["scope"] == "context":
-                if s["id"] == "fred_usrec":
-                    recessions = _recessions(obs)
-                else:
-                    context[s["id"]] = obs
-                continue
-            row = {k: s[k] for k in s.keys()}
-            row.update(value=None, previous=None, ref_date=None, as_of=None, history=[], trend=[], stats=None, score=None, view=None,
-                       polarity=A.SCORING[s["id"]][0] if s["id"] in A.SCORING else 0,
-                       transform=A.SCORING[s["id"]][1] if s["id"] in A.SCORING else None)
-            if obs:
-                hist = A.to_monthly(obs, s["frequency"])
-                st = A.describe(hist, s["frequency"])
-                trend = st.pop("trend")
-                row.update(value=obs[-1][1], previous=obs[-2][1] if len(obs) > 1 else None, ref_date=obs[-1][0].isoformat(),
-                           as_of=as_of.isoformat() if as_of else None, stats={k: _round(v) for k, v in st.items()},
-                           history=[[d.isoformat(), _round(v)] for d, v in hist], trend=[_round(t) for t in trend],
-                           view=_view(row, hist))
-                latest_key = max(latest_key, A.month_key(obs[-1][0]))
-                if s["id"] in A.SCORING:
-                    scores = A.member_scores(s["id"], hist, s["frequency"])
-                    if scores:
-                        members.setdefault((s["scope"], s["perspective"]), {})[s["id"]] = scores
-                        row["score"] = round(scores[-1][1], 1)
-                    freqs[s["id"]] = s["frequency"]
-            indicators.append(row)
+            as_of_by_id[s["id"]] = c.execute(select(db.observations.c.as_of).where(db.observations.c.series_id == s["id"])
+                                             .order_by(db.observations.c.ref_date.desc()).limit(1)).scalar()
+    derived, notes = derive(obs_by_id)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    for k, v in derived.items():
+        obs_by_id[k] = v
+        as_of_by_id[k] = as_of_by_id.get(k) or now
+    indicators, members, freqs, recessions, latest_key, context = [], {}, {}, [], 0, {}
+    for s in cat:
+        obs, as_of = obs_by_id[s["id"]], as_of_by_id[s["id"]]
+        if s["scope"] == "context":
+            if s["id"] == "fred_usrec":
+                recessions = _recessions(obs)
+            else:
+                context[s["id"]] = obs
+            continue
+        row = {k: s[k] for k in s.keys()}
+        row.update(value=None, previous=None, ref_date=None, as_of=None, history=[], trend=[], stats=None, score=None, view=None,
+                   note=notes.get(s["id"]),
+                   polarity=A.SCORING[s["id"]][0] if s["id"] in A.SCORING else 0,
+                   transform=A.SCORING[s["id"]][1] if s["id"] in A.SCORING else None)
+        if obs:
+            hist = A.to_monthly(obs, s["frequency"])
+            st = A.describe(hist, s["frequency"])
+            trend = st.pop("trend")
+            row.update(value=obs[-1][1], previous=obs[-2][1] if len(obs) > 1 else None, ref_date=obs[-1][0].isoformat(),
+                       as_of=as_of.isoformat() if as_of else None, stats={k: _round(v) for k, v in st.items()},
+                       history=[[d.isoformat(), _round(v)] for d, v in hist], trend=[_round(t) for t in trend],
+                       view=_view(row, hist))
+            latest_key = max(latest_key, A.month_key(obs[-1][0]))
+            if s["id"] in A.SCORING:
+                scores = A.member_scores(s["id"], hist, s["frequency"])
+                if scores:
+                    members.setdefault((s["scope"], s["perspective"]), {})[s["id"]] = scores
+                    row["score"] = round(scores[-1][1], 1)
+                freqs[s["id"]] = s["frequency"]
+        indicators.append(row)
     last_month = A.month_key(date.today())
     indices = {"usa": {}, "global": {}}
     for scope in indices:

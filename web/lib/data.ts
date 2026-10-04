@@ -14,7 +14,7 @@ export type Indicator = {
   frequency: string; rationale: string | null; source_url: string | null; stale_after_days: number;
   value: number | null; previous: number | null; ref_date: string | null; as_of: string | null;
   history: [string, number][]; trend: number[]; stats: Stats | null; score: number | null; polarity: number; transform: string | null;
-  view: View | null; status: Freshness | null;
+  view: View | null; note: string | null; status: Freshness | null;
 };
 export type Driver = { id: string; name: string; score: number; ref_date: string; group: string };
 export type Index = {

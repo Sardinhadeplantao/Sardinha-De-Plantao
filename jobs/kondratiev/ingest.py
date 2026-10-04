@@ -5,9 +5,9 @@ from kondratiev import db
 from kondratiev.catalog import CATALOG
 import os
 import time
-from kondratiev.sources import bis, edgar, fred, shiller, treasury, worldbank
+from kondratiev.sources import bis, edgar, ember, fred, shiller, treasury, worldbank
 
-SOURCES = {"bis": bis, "edgar": edgar, "fred": fred, "shiller": shiller, "treasury": treasury, "worldbank": worldbank}
+SOURCES = {"bis": bis, "edgar": edgar, "ember": ember, "fred": fred, "shiller": shiller, "treasury": treasury, "worldbank": worldbank}
 
 
 def run(engine, catalog=CATALOG, sources=SOURCES, session=None):
@@ -15,7 +15,7 @@ def run(engine, catalog=CATALOG, sources=SOURCES, session=None):
         catalog = [s for s in catalog if s["source"] != "fred"]
     db.upsert(engine, db.series_catalog, catalog, ["id"])
     failures = 0
-    for name in sorted({s["source"] for s in catalog}):
+    for name in sorted({s["source"] for s in catalog} - {"derivado"}):  # derived series are computed at export
         started = datetime.now(timezone.utc).replace(tzinfo=None)
         total, errors = 0, []
         for s in (x for x in catalog if x["source"] == name):

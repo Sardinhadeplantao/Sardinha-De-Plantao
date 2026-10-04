@@ -11,7 +11,7 @@ from datetime import date
 
 import numpy as np
 
-METHODOLOGY_VERSION = "0.4"
+METHODOLOGY_VERSION = "0.5"
 
 # series id -> (polarity, transform, kind)
 #   polarity +1: a high reading means more expansion / heat / fragility for its index; -1: the opposite.
@@ -33,7 +33,13 @@ SCORING = {
     # Perez: financial capital heat (valuation levels) and spread of the information paradigm
     **{f"wb_{c}_{k}": (1, "level", "diff") for c in ("usa", "wld") for k in ("cm_mkt_lcap_gd_zs", "cm_mkt_trad_gd_zs")},
     **{f"wb_{c}_tx_val_ictg_zs_un": (1, "chg60", "pct") for c in ("usa", "wld")},
-    "fred_buffett": (1, "level", "diff"), "fred_nasdaq": (1, "chg12", "pct"),
+    "fred_buffett": (1, "level", "diff"), "fred_nasdaq": (1, "chg12", "pct"), "x_erp": (-1, "level", "diff"),
+    # fresher official substitutes and cross-source series (v0.5)
+    "fred_gdpc1": (1, "chg12", "pct"), "fred_gdpdef": (1, "chg12", "pct"),
+    "fred_bfs": (1, "chg12", "pct"), "fred_rnd": (1, "chg60", "pct"),
+    "fred_eqta": (-1, "level", "diff"), "bis_us_total_credit": (1, "level", "diff"), "x_real_fedfunds": (1, "level", "diff"),
+    **{f"ember_{a}_{k}": (1, "chg12", "diff") for a in ("usa", "world") for k in ("renew", "windsolar")},
+    **{f"ember_{a}_co2int": (-1, "chg12", "pct") for a in ("usa", "world")},
     # Freeman: diffusion of the new energy paradigm (renewables up, carbon and energy intensity down)
     **{f"wb_{c}_eg_fec_rnew_zs": (1, "chg60", "pct") for c in ("usa", "wld")},
     **{f"wb_{c}_{k}": (-1, "chg60", "pct") for c in ("usa", "wld") for k in ("en_ghg_co2_pc_ce_ar5", "eg_egy_prim_pp_kd")},
@@ -52,16 +58,16 @@ SCORING = {
 # Sub-groups inside each lens. The index averages members within a group, then averages the groups, so a block of
 # highly correlated series (e.g. five interest rates) does not outvote the rest. Unlisted series form their own lens group.
 GROUPS = {
-    **{k: "preços" for k in ("fred_cpiaucsl", "fred_ppiaco", "fred_dcoilwtico", "wb_usa_fp_cpi_totl_zg",
+    **{k: "preços" for k in ("fred_gdpdef", "fred_cpiaucsl", "fred_ppiaco", "fred_dcoilwtico", "wb_usa_fp_cpi_totl_zg",
                              "wb_usa_ny_gdp_defl_kd_zg", "wb_wld_fp_cpi_totl_zg", "wb_wld_ny_gdp_defl_kd_zg")},
     **{k: "juros" for k in ("fred_fedfunds", "fred_dfii10", "ust_5y", "ust_10y", "ust_30y", "wb_usa_fr_inr_rinr")},
-    **{k: "atividade" for k in ("fred_indpro", "fred_unrate", "wb_usa_ny_gdp_mktp_kd_zg", "wb_wld_ny_gdp_mktp_kd_zg")},
+    **{k: "atividade" for k in ("fred_gdpc1", "fred_indpro", "fred_unrate", "wb_usa_ny_gdp_mktp_kd_zg", "wb_wld_ny_gdp_mktp_kd_zg")},
     **{k: "alavancagem" for k in ("wb_usa_fs_ast_prvt_gd_zs", "wb_wld_fs_ast_prvt_gd_zs", "wb_usa_fs_ast_doms_gd_zs",
-                                  "wb_usa_fb_bnk_capa_zs", "bis_us_credit_gap", "bis_us_dsr", "fred_tdsp", "fred_m2sl")},
+                                  "wb_usa_fb_bnk_capa_zs", "bis_us_credit_gap", "bis_us_total_credit", "fred_eqta", "bis_us_dsr", "fred_tdsp", "fred_m2sl")},
     **{k: "preço do risco" for k in ("fred_baa10y", "fred_nfci", "fred_mortgage30us")},
-    **{k: "curva e política" for k in ("fred_t10y2y", "fred_t10y3m", "ust_3m", "ust_2y")},
+    **{k: "curva e política" for k in ("fred_t10y2y", "fred_t10y3m", "ust_3m", "ust_2y", "x_real_fedfunds")},
     **{k: "valuation" for k in ("wb_usa_cm_mkt_lcap_gd_zs", "wb_wld_cm_mkt_lcap_gd_zs", "wb_usa_cm_mkt_trad_gd_zs",
-                                "wb_wld_cm_mkt_trad_gd_zs", "shiller_cape", "fred_buffett", "fred_nasdaq")},
+                                "wb_wld_cm_mkt_trad_gd_zs", "shiller_cape", "fred_buffett", "fred_nasdaq", "x_erp")},
     **{k: "investimento" for k in ("sec_ai_capex_ocf", "sec_ai_capex", "wb_usa_tx_val_ictg_zs_un", "wb_wld_tx_val_ictg_zs_un")},
 }
 STALE_INDEX_MONTHS = 3  # an index whose latest value is older than this is flagged as stale

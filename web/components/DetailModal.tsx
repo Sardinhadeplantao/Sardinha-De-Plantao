@@ -120,6 +120,7 @@ export function DetailModal({ ind: slimInd, recessions, onClose }: { ind: Indica
         <div className="mt-4 space-y-2 text-sm text-slate-200">
           <h3 className="text-base font-semibold">Leitura</h3>
           {reading(ind, basis).map((p, k) => <p key={k}>{p}</p>)}
+          {ind.note && <p className="rounded border border-sky-900 bg-sky-950/40 p-2 text-sky-200"><b>Como é calculado:</b> {ind.note}</p>}
           <p className="text-slate-400"><b>Por que importa:</b> {ind.rationale}</p>
         </div>
         <p className="mt-3 text-xs text-slate-500">Descrição estatística dos dados públicos, não é recomendação de investimento.
