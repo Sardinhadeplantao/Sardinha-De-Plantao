@@ -109,3 +109,29 @@ def test_fred_key_whitespace_is_ignored(monkeypatch):
     s = FakeSession()
     fred.fetch(CAT[0], session=s)
     assert s.calls[0][1]["api_key"] == "secret-key"
+
+
+def test_bis_parses_sdmx_csv_quarters():
+    from kondratiev.sources import bis
+    csv_text = "KEY,FREQ,TIME_PERIOD,OBS_VALUE\nX,Q,2025-Q4,4.5\nX,Q,2026-Q1,\nX,Q,2026-Q2,-1.2\n"
+    class S:
+        def get(self, *a, **k):
+            return type("R", (), {"status_code": 200, "text": csv_text, "raise_for_status": lambda s: None})()
+    rows = bis.fetch({"code": "WS_CREDIT_GAP/Q.US.P.A.C"}, session=S())
+    assert rows == [(date(2025, 12, 31), 4.5, False), (date(2026, 6, 30), -1.2, False)]
+
+
+def test_shiller_fails_loudly_when_layout_changes():
+    from kondratiev.sources import shiller
+    import xlrd
+    class Sheet:
+        ncols, nrows = 3, 5
+        def cell_value(self, r, c): return "x"
+    class WB:
+        def sheet_by_name(self, n): return Sheet()
+    shiller._cache["wb"] = WB()
+    try:
+        with pytest.raises(RuntimeError, match="layout changed"):
+            shiller.fetch({"code": "CAPE"})
+    finally:
+        shiller._cache.clear()
