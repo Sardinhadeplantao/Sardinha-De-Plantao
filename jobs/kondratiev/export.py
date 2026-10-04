@@ -38,4 +38,8 @@ if __name__ == "__main__":
     data = build(db.get_engine())
     with open(out, "w") as f:
         json.dump(data, f, ensure_ascii=False)
+    for i in data["indicators"]:
+        print(f"{i['id']:32} {len(i['history']):3} pts  latest={i['ref_date']}  value={i['value']}")
+    for r in data["runs"][:4]:
+        print(f"run {r['source']}: {r['status']} rows={r['rows']} {r['error'] or ''}")
     print(f"exported {len(data['indicators'])} indicators")

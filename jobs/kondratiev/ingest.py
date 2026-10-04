@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from kondratiev import db
 from kondratiev.catalog import CATALOG
 import os
+import time
 from kondratiev.sources import fred, treasury, worldbank
 
 SOURCES = {"fred": fred, "treasury": treasury, "worldbank": worldbank}
@@ -19,7 +20,9 @@ def run(engine, catalog=CATALOG, sources=SOURCES, session=None):
         total, errors = 0, []
         for s in (x for x in catalog if x["source"] == name):
             try:
+                t0 = time.monotonic()
                 rows = sources[name].fetch(s, session=session)
+                print(f"{s['id']}: {len(rows)} obs in {time.monotonic() - t0:.0f}s", flush=True)
                 as_of = datetime.now(timezone.utc).replace(tzinfo=None)
                 total += db.upsert(engine, db.observations,
                                    [dict(series_id=s["id"], ref_date=d, vintage="latest", value=v, as_of=as_of,

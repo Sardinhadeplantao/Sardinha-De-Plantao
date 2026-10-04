@@ -27,11 +27,15 @@ def _get(url, params=None, headers=None, min_interval=0.0, retries=2, session=No
             r = s.get(url, params=params, headers=headers, timeout=timeout)
             if r.status_code in (429, 500, 502, 503, 504):
                 raise requests.HTTPError(f"HTTP {r.status_code}")
+            if r.status_code >= 400:  # not retryable (bad key, bad id): fail now, report the status only
+                raise RuntimeError(f"request to {url} failed: HTTP {r.status_code}")
             r.raise_for_status()
             return parse(r)
+        except RuntimeError:
+            raise
         except (requests.RequestException, ValueError) as exc:
             if attempt == retries:
                 # never include params: they may carry an API key
-                raise RuntimeError(f"request to {url} failed: {type(exc).__name__}") from None
+                raise RuntimeError(f"request to {url} failed: {type(exc).__name__} {exc if isinstance(exc, requests.HTTPError) else ''}".strip()) from None
             time.sleep(delay)
             delay *= 2
