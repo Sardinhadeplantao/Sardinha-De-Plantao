@@ -4,7 +4,7 @@ Hyperscaler AI-capex proxy: trailing-four-quarter capital expenditure and operat
 Microsoft, Alphabet, Amazon, Meta and Oracle. `code` is 'capex_ocf' (ratio, %) or 'capex' (US$ bn).
 Cash-flow statements report year-to-date amounts, so discrete quarters are rebuilt by differencing."""
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import requests
 from kondratiev.http import get_json
 
@@ -37,12 +37,15 @@ def discrete_quarters(entries):
         key = (e["start"], e["end"])
         if key not in best or e["filed"] > best[key]["filed"]:
             best[key] = e
+    # Fiscal-year starts: the start of every annual period and the day after each annual period ends (the year in progress).
+    annual = [(k, e) for k, e in best.items() if 340 <= (_d(k[1]) - _d(k[0])).days <= 400]
+    starts = {k[0] for k, _ in annual} | {(_d(k[1]) + timedelta(days=1)).isoformat() for k, _ in annual}
     by_start = {}
-    for (s, en), e in best.items():
-        days = (_d(en) - _d(s)).days
-        if days > 400:
+    for (s_, en), e in best.items():
+        days = (_d(en) - _d(s_)).days
+        if days > 400 or s_ not in starts:  # ignore stand-alone quarter facts that do not start at a fiscal year start
             continue
-        by_start.setdefault(s, {})[en] = (days, e["val"])
+        by_start.setdefault(s_, {})[en] = (days, e["val"])
     out = {}
     for s, ends in by_start.items():
         prev_val, prev_end = 0.0, None
