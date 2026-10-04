@@ -78,6 +78,60 @@ function Card({ i, onPick }: { i: Indicator; onPick: (i: Indicator) => void }) {
   );
 }
 
+function Context({ data }: { data: Data }) {
+  const v = data.valuation;
+  const bt = Object.entries(data.backtest);
+  return (
+    <>
+      {v && (
+        <section className="mt-8 rounded-xl border border-slate-800 bg-slate-900 p-4">
+          <h2 className="text-lg font-bold">Contexto de valuation — o que aconteceu depois de CAPE parecido</h2>
+          <p className="mt-1 text-sm text-slate-300">
+            O CAPE do S&P 500 está em <b>{fmt(v.current, 1)}</b> ({v.current_date}), no percentil <b>{fmt(v.percentile, 0)}</b> da história desde {v.since.slice(0, 4)}.
+            A tabela mostra o retorno real anualizado nos meses em que o CAPE esteve entre os percentis {v.band[0]} e {v.band[1]}, contra todos os meses.
+          </p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-slate-400"><tr><th className="py-1">Horizonte</th><th>CAPE parecido: mediana</th><th>pior 10%</th><th>melhor 10%</th><th>% negativos</th><th>meses</th><th>Todos os meses: mediana</th></tr></thead>
+              <tbody>{v.horizons.map((h) => (
+                <tr key={h.years} className="border-t border-slate-800">
+                  <td className="py-1">{h.years} {h.years === 1 ? "ano" : "anos"}</td>
+                  <td className="font-semibold">{fmt(h.similar.median, 1)}% a.a.</td><td>{fmt(h.similar.p10, 1)}%</td><td>{fmt(h.similar.p90, 1)}%</td>
+                  <td>{h.similar.negative_share}%</td><td>{h.similar.n}</td><td>{fmt(h.all.median, 1)}% a.a.</td>
+                </tr>))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">Estatística descritiva dentro da amostra. As janelas se sobrepõem, então o número efetivo de episódios independentes é muito menor que o de meses.
+            O passado não garante o futuro, e isto não é recomendação de investimento.</p>
+        </section>
+      )}
+      {bt.length > 0 && (
+        <section className="mt-6 rounded-xl border border-slate-800 bg-slate-900 p-4">
+          <h2 className="text-lg font-bold">Validação histórica — os índices subiram antes das recessões?</h2>
+          <p className="mt-1 text-sm text-slate-300">Média de cada índice nos 24 meses que antecederam cada recessão dos EUA, comparada com a média fora de recessões.</p>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead className="text-slate-400"><tr><th className="py-1">Ótica</th><th>Recessões</th><th>Antes (média)</th><th>Fora de recessão</th><th>Diferença</th><th>Acertos no limiar</th><th>Alarmes falsos</th></tr></thead>
+              <tbody>{bt.map(([p, b]) => (
+                <tr key={p} className="border-t border-slate-800">
+                  <td className="py-1">{PERSPECTIVES[p].split(" — ")[0]}</td><td>{b.recessions}</td>
+                  <td>{b.avg_before !== null ? fmt(b.avg_before, 0) : "—"}</td><td>{b.avg_other !== null ? fmt(b.avg_other, 0) : "—"}</td>
+                  <td className={b.difference !== undefined && Math.abs(b.difference) >= 5 ? "font-semibold" : ""}>{b.difference !== undefined ? (b.difference > 0 ? "+" : "") + fmt(b.difference, 0) : "—"}</td>
+                  <td>{b.threshold !== undefined ? `${b.hits}/${b.recessions} (índice ≥ ${b.threshold})` : "—"}</td>
+                  <td>{b.false_alarm_rate != null ? `${b.false_alarm_rate}%` : "—"}</td>
+                </tr>))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[11px] text-slate-500">Limites: poucas recessões na janela de dados, limiares escolhidos dentro da amostra, dados revisados (não são os divulgados na época) e defasagens de publicação aproximadas.
+            Um índice sem diferença relevante não ajuda a antecipar recessões, e isso faz parte do resultado.</p>
+        </section>
+      )}
+    </>
+  );
+}
+
 export function Dashboard({ data }: { data: Data }) {
   const [scope, setScope] = useState<"usa" | "global">("usa");
   const [open, setOpen] = useState<Indicator | null>(null);
@@ -144,6 +198,8 @@ export function Dashboard({ data }: { data: Data }) {
           </section>
         </>
       )}
+
+      {!empty && scope === "usa" && <Context data={data} />}
 
       <section className="mt-10">
         <h2 className="mb-3 text-lg font-semibold">Qualidade dos dados</h2>

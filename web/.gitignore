@@ -1,5 +1,6 @@
-node_modules
-.next
 *.db
 .env*
+.next
 data/
+node_modules
+public/data.json

@@ -5,7 +5,7 @@ on:
   workflow_dispatch: {}
   push:
     branches: [main, "claude/**"]
-permissions: { contents: read, pages: write, id-token: write }
+permissions: { contents: read, pages: write, id-token: write, issues: write }
 concurrency: { group: "pages-${{ github.ref }}", cancel-in-progress: true }
 jobs:
   build:
@@ -15,16 +15,32 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: { python-version: "3.11", cache: pip, cache-dependency-path: jobs/requirements.txt }
+      - name: Dados publicados anteriormente (para comparar e alertar)
+        run: curl -fsS "https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/data.json" -o /tmp/prev.json || echo '{}' > /tmp/prev.json
       - name: Testes e coleta de dados reais
         working-directory: jobs
-        env: { FRED_API_KEY: "${{ secrets.FRED_API_KEY }}" }
+        env:
+          FRED_API_KEY: "${{ secrets.FRED_API_KEY }}"
+          SEC_USER_AGENT: "${{ secrets.SEC_USER_AGENT }}"
         run: |
           pip install -r requirements.txt
           python -m pytest -q
           python -m kondratiev.validate || echo "Alguma série falhou na validação (veja acima)"
           python -m kondratiev.ingest || echo "Alguma fonte falhou (veja acima e no painel de qualidade)"
-          mkdir -p ../web/data
+          mkdir -p ../web/data ../web/public
           python -m kondratiev.export ../web/data/data.json
+          cp ../web/data/data.json ../web/public/data.json
+      - name: Alertas (somente na branch principal)
+        if: github.ref == 'refs/heads/main'
+        working-directory: jobs
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          rm -f /tmp/alert.md
+          python -m kondratiev.alerts /tmp/prev.json ../web/data/data.json /tmp/alert.md
+          if [ -f /tmp/alert.md ]; then
+            gh label create alerta --color d93f0b --description "Alerta automático do monitor" --repo "$GITHUB_REPOSITORY" 2>/dev/null || true
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "Alerta: mudança de leitura em $(date -u +%Y-%m-%d)" --label alerta --body-file /tmp/alert.md
+          fi
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: web/package-lock.json }
       - name: Montar o site

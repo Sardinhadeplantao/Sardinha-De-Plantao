@@ -18,16 +18,25 @@ export type Index = {
   label: string; state: string | null; value: number | null; n: number; total: number; change_12m?: number | null;
   history: [string, number, number][]; drivers: Driver[]; summary: string;
 };
+export type Backtest = {
+  recessions: number; avg_before: number | null; avg_other: number | null; window_months: number; difference?: number;
+  threshold?: number; hits?: number; hit_rate?: number; false_alarm_rate?: number | null; flagged_months?: number;
+};
+export type Valuation = {
+  current: number; current_date: string; percentile: number; band: [number, number]; since: string;
+  horizons: { years: number; similar: Record<string, number>; all: Record<string, number> }[];
+};
 export type Run = { source: string; started_at: string; status: string; rows: number; error: string | null };
 export type Data = {
   generated_at: string | null; methodology_version: string | null; indicators: Indicator[];
   indices: Record<"usa" | "global", Record<string, Index>>; recessions: [string, string][]; runs: Run[];
+  backtest: Record<string, Backtest>; valuation: Valuation | null;
 };
 
 /** Reads data/data.json produced by the ingestion job (real data only). Missing file = empty state. */
 export function loadData(): Data {
   const file = path.join(process.cwd(), "data", "data.json");
-  const empty: Data = { generated_at: null, methodology_version: null, indicators: [], indices: { usa: {}, global: {} }, recessions: [], runs: [] };
+  const empty: Data = { generated_at: null, methodology_version: null, indicators: [], indices: { usa: {}, global: {} }, recessions: [], runs: [], backtest: {}, valuation: null };
   if (!fs.existsSync(file)) return empty;
   const raw = JSON.parse(fs.readFileSync(file, "utf8"));
   return {

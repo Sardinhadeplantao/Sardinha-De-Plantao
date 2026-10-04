@@ -51,14 +51,17 @@ def _index_summary(index, rows, drivers_raw, series, last_month, total):
 def build(engine):
     with engine.connect() as c:
         cat = c.execute(select(db.series_catalog).order_by(db.series_catalog.c.perspective, db.series_catalog.c.id)).mappings().all()
-        indicators, members, freqs, recessions, latest_key = [], {}, {}, [], 0
+        indicators, members, freqs, recessions, latest_key, context = [], {}, {}, [], 0, {}
         for s in cat:
             obs = [(o["ref_date"], o["value"]) for o in c.execute(
                 select(db.observations).where(db.observations.c.series_id == s["id"]).order_by(db.observations.c.ref_date)).mappings()]
             as_of = c.execute(select(db.observations.c.as_of).where(db.observations.c.series_id == s["id"])
                               .order_by(db.observations.c.ref_date.desc()).limit(1)).scalar()
             if s["scope"] == "context":
-                recessions = _recessions(obs)
+                if s["id"] == "fred_usrec":
+                    recessions = _recessions(obs)
+                else:
+                    context[s["id"]] = obs
                 continue
             row = {k: s[k] for k in s.keys()}
             row.update(value=None, previous=None, ref_date=None, as_of=None, history=[], trend=[], stats=None, score=None,
@@ -86,8 +89,17 @@ def build(engine):
             rows = [r for r in indicators if r["scope"] == scope and r["perspective"] == persp and r["id"] in A.SCORING]
             series, drivers = A.composite(members.get((scope, persp), {}), freqs, last_month)
             indices[scope][persp] = _index_summary(persp, rows, drivers, series, last_month, len(rows))
+    thresholds = {"minsky": 60, "perez": 70}
+    backtest = {p: A.backtest([(h[0], h[1]) for h in indices["usa"][p]["history"]], recessions, thresholds.get(p))
+                for p in PERSPECTIVES if indices["usa"][p]["history"]}
+    cape = next((i for i in indicators if i["id"] == "shiller_cape" and i["history"]), None)
+    valuation = None
+    if cape and context.get("shiller_real_tr"):
+        valuation = A.forward_returns(A.to_monthly([(date.fromisoformat(d), v) for d, v in cape["history"]], "monthly"),
+                                      A.to_monthly(context["shiller_real_tr"], "monthly"))
     return {"generated_at": datetime.now(timezone.utc).isoformat(), "methodology_version": A.METHODOLOGY_VERSION,
             "indicators": indicators, "indices": indices, "recessions": recessions,
+            "backtest": {k: v for k, v in backtest.items() if v}, "valuation": valuation,
             "runs": [{**r, "started_at": r["started_at"].isoformat(),
                       "finished_at": r["finished_at"].isoformat() if r["finished_at"] else None}
                      for r in _runs(engine)]}
@@ -103,6 +115,8 @@ if __name__ == "__main__":
     data = build(db.get_engine())
     with open(out, "w") as f:
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
+    print("backtest:", json.dumps(data["backtest"], ensure_ascii=False))
+    print("valuation:", json.dumps(data["valuation"], ensure_ascii=False))
     for scope, idx in data["indices"].items():
         for p, v in idx.items():
             print(f"{scope:6} {p:11} {v['state']}  value={v['value']}  n={v['n']}/{v['total']}")
