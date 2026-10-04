@@ -206,3 +206,14 @@ def test_edgar_merges_capex_tags_across_a_tag_change(monkeypatch):
     gaap["PaymentsToAcquireProductiveAssets"] = {"units": {"USD": [e for e in entries if e["start"].startswith("2024")]}}
     monkeypatch.setattr(edgar, "_facts", lambda cik, session=None: facts)
     assert abs(edgar.fetch({"code": "capex_ocf"})[-1][1] - 50.0) < 1e-6
+
+
+def test_fred_ratio_series(monkeypatch):
+    monkeypatch.setenv("FRED_API_KEY", "k")
+    class S:
+        def get(self, url, params=None, **k):
+            vals = {"NUM": [("2026-01-01", "2000"), ("2026-04-01", "3000")], "DEN": [("2026-01-01", "10"), ("2026-04-01", ".")]}
+            obs = [{"date": d, "value": v} for d, v in vals[params["series_id"]]]
+            return Resp({"observations": obs})
+    rows = fred.fetch({"code": "NUM/DEN*0.1"}, session=S())
+    assert rows == [(date(2026, 1, 1), 20.0, False)]   # (2000/10)*0.1; the quarter with a missing denominator is skipped

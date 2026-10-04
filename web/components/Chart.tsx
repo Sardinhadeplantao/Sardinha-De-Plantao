@@ -5,9 +5,9 @@ type Pt = [string, number];
 type Band = { from: number; to: number; color: string };
 const t = (d: string) => new Date(d.length === 7 ? d + "-01" : d).getTime();
 
-export function Chart({ data, trend, recessions = [], bands = [], fixedY, height = 260, color = "#38bdf8", unit = "", digits = 2 }: {
+export function Chart({ data, trend, recessions = [], bands = [], fixedY, height = 260, color = "#38bdf8", unit = "", digits = 2, label = "Gráfico histórico" }: {
   data: Pt[]; trend?: number[]; recessions?: [string, string][]; bands?: Band[]; fixedY?: [number, number];
-  height?: number; color?: string; unit?: string; digits?: number;
+  height?: number; color?: string; unit?: string; digits?: number; label?: string;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const W = 800, H = height, L = 48, R = 12, T = 12, B = 24;
@@ -37,7 +37,7 @@ export function Chart({ data, trend, recessions = [], bands = [], fixedY, height
           {h[0].slice(0, 7)}: <b>{fmt(h[1])}</b> {unit}
         </div>
       )}
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-none select-none"
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full touch-none select-none" role="img" aria-label={label}
         onPointerMove={(e) => {
           const r = e.currentTarget.getBoundingClientRect();
           const px = ((e.clientX - r.left) / r.width) * W;

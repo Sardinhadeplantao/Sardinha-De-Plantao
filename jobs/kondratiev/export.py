@@ -1,16 +1,57 @@
 """Export the database plus analytics to web/data/data.json (what the static site reads). Real data only."""
 import json
+import math
 import sys
 from datetime import date, datetime, timezone
 from sqlalchemy import select
 from kondratiev import analytics as A
 from kondratiev import db
+from kondratiev.freshness import status as freshness_status
 
 PERSPECTIVES = ["kondratiev", "schumpeter", "perez", "freeman", "minsky"]
 
 
 def _round(v):
     return round(v, 4) if isinstance(v, float) else v
+
+
+def _int(v):
+    """Round half up, the same way the site does (Math.round), so text and numbers never disagree."""
+    return int(math.floor(v + 0.5))
+
+
+VIEW_LABELS = {"chg12": "Variação em 12 meses", "chg60": "Variação em 5 anos"}
+
+
+def _view(row, hist):
+    """For series read through a change (prices, indices, counts), describe the change, not the ever-rising level."""
+    if row["id"] not in A.SCORING:
+        return None
+    _, how, kind = A.SCORING[row["id"]]
+    if how == "level":
+        return None
+    th = A.transform(hist, how, kind)
+    if len(th) < 3:
+        return None
+    st = A.describe(th, row["frequency"])
+    trend = st.pop("trend")
+    return {"label": VIEW_LABELS[how], "unit": "%" if kind == "pct" else row["unit"], "value": _round(th[-1][1]),
+            "ref_date": th[-1][0].isoformat(), "stats": {k: _round(v) for k, v in st.items()},
+            "history": [[d.isoformat(), _round(v)] for d, v in th], "trend": [_round(t) for t in trend]}
+
+
+def _extremes(indicators, scope, limit=8):
+    """Fresh indicators at the edges of their own history (percentile >= 95 or <= 5), most extreme first."""
+    out = []
+    for r in indicators:
+        if r["scope"] != scope or not r["stats"] or freshness_status(date.fromisoformat(r["ref_date"]), r["stale_after_days"]) == "obsoleto":
+            continue
+        basis = r["view"] or r
+        p = basis["stats"]["percentile"]
+        if p >= 95 or p <= 5:
+            out.append({"id": r["id"], "name": r["name"], "percentile": p, "basis": basis.get("label", "nível"),
+                        "direction": "máxima" if p >= 95 else "mínima"})
+    return sorted(out, key=lambda x: -abs(x["percentile"] - 50))[:limit]
 
 
 def _recessions(hist):
@@ -30,21 +71,29 @@ def _recessions(hist):
 def _index_summary(index, rows, drivers_raw, series, last_month, total):
     if not series:
         return {"label": A.INDEX_LABELS[index], "state": None, "value": None, "n": 0, "total": total, "history": [],
-                "drivers": [], "summary": f"Dados insuficientes: menos de {A.MIN_MEMBERS} indicadores com histórico utilizável."}
-    values = [v for _, v, _ in series]
-    state = A.state_with_history(index, values)
+                "drivers": [], "as_of": None, "stale": False,
+                "summary": f"Dados insuficientes: menos de {A.MIN_MEMBERS} indicadores com histórico utilizável."}
+    values, keys = [v for _, v, _ in series], [k for k, _, _ in series]
+    value = round(values[-1], 1)
+    state = A.state_with_history(index, values, keys)
     names = {r["id"]: r["name"] for r in rows}
-    drivers = sorted(({"id": sid, "name": names[sid], "score": round(sc, 1), "ref_date": rd.isoformat()}
-                      for sid, sc, rd in drivers_raw), key=lambda x: -x["score"])
-    top = ", ".join(f"{d['name']} ({d['score']:.0f})" for d in drivers[:2])
-    bottom = ", ".join(f"{d['name']} ({d['score']:.0f})" for d in drivers[-2:][::-1])
-    change = values[-1] - values[-13] if len(values) > 12 else None
+    drivers = sorted(({"id": sid, "name": names[sid], "score": round(sc, 1), "ref_date": rd.isoformat(),
+                       "group": A.GROUPS.get(sid, index)} for sid, sc, rd in drivers_raw), key=lambda x: -x["score"])
+    top = drivers[:2]
+    bottom = [d for d in reversed(drivers) if d not in top][:2]
+    fmt = lambda ds: ", ".join(f"{d['name']} ({_int(d['score'])})" for d in ds)
+    past = A.value_months_ago(series, 12)
+    stale = keys[-1] < last_month - A.STALE_INDEX_MONTHS
+    as_of = A.key_to_label(keys[-1])
+    summary = f"{state}: índice {_int(value)}/100, com {series[-1][2]} de {total} indicadores. Pontuações mais altas: {fmt(top)}."
+    if bottom:
+        summary += f" Mais baixas: {fmt(bottom)}."
+    if stale:
+        summary += f" Atenção: último mês com dados suficientes foi {as_of}."
     return {
-        "label": A.INDEX_LABELS[index], "state": state, "value": round(values[-1], 1), "n": series[-1][2], "total": total,
-        "change_12m": round(change, 1) if change is not None else None,
-        "history": [[A.key_to_label(k), round(v, 1), n] for k, v, n in series], "drivers": drivers,
-        "summary": f"{state}: índice {values[-1]:.0f}/100, com {series[-1][2]} de {total} indicadores. "
-                   f"Pontuações mais altas: {top}. Mais baixas: {bottom}.",
+        "label": A.INDEX_LABELS[index], "state": state, "value": value, "n": series[-1][2], "total": total,
+        "change_12m": round(value - past, 1) if past is not None else None, "as_of": as_of, "stale": stale,
+        "history": [[A.key_to_label(k), round(v, 1), n] for k, v, n in series], "drivers": drivers, "summary": summary,
     }
 
 
@@ -64,7 +113,7 @@ def build(engine):
                     context[s["id"]] = obs
                 continue
             row = {k: s[k] for k in s.keys()}
-            row.update(value=None, previous=None, ref_date=None, as_of=None, history=[], trend=[], stats=None, score=None,
+            row.update(value=None, previous=None, ref_date=None, as_of=None, history=[], trend=[], stats=None, score=None, view=None,
                        polarity=A.SCORING[s["id"]][0] if s["id"] in A.SCORING else 0,
                        transform=A.SCORING[s["id"]][1] if s["id"] in A.SCORING else None)
             if obs:
@@ -73,7 +122,8 @@ def build(engine):
                 trend = st.pop("trend")
                 row.update(value=obs[-1][1], previous=obs[-2][1] if len(obs) > 1 else None, ref_date=obs[-1][0].isoformat(),
                            as_of=as_of.isoformat() if as_of else None, stats={k: _round(v) for k, v in st.items()},
-                           history=[[d.isoformat(), _round(v)] for d, v in hist], trend=[_round(t) for t in trend])
+                           history=[[d.isoformat(), _round(v)] for d, v in hist], trend=[_round(t) for t in trend],
+                           view=_view(row, hist))
                 latest_key = max(latest_key, A.month_key(obs[-1][0]))
                 if s["id"] in A.SCORING:
                     scores = A.member_scores(s["id"], hist, s["frequency"])
@@ -100,6 +150,7 @@ def build(engine):
     return {"generated_at": datetime.now(timezone.utc).isoformat(), "methodology_version": A.METHODOLOGY_VERSION,
             "indicators": indicators, "indices": indices, "recessions": recessions,
             "backtest": {k: v for k, v in backtest.items() if v}, "valuation": valuation,
+            "extremes": {scope: _extremes(indicators, scope) for scope in ("usa", "global")},
             "runs": [{**r, "started_at": r["started_at"].isoformat(),
                       "finished_at": r["finished_at"].isoformat() if r["finished_at"] else None}
                      for r in _runs(engine)]}
@@ -117,7 +168,8 @@ if __name__ == "__main__":
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     for scope, idx in data["indices"].items():
         for p, v in idx.items():
-            print(f"{scope:6} {p:11} {v['state']}  value={v['value']}  n={v['n']}/{v['total']}")
+            print(f"{scope:6} {p:11} {v['state']}  value={v['value']}  n={v['n']}/{v['total']}  as_of={v['as_of']}  stale={v['stale']}")
+    print("extremes:", json.dumps(data["extremes"]["usa"], ensure_ascii=False))
     for i in data["indicators"]:
         print(f"{i['id']:32} {len(i['history']):4} pts  latest={i['ref_date']}  value={i['value']}  score={i['score']}")
     for r in data["runs"][:8]:

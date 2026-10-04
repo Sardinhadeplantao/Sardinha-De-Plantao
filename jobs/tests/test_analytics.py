@@ -133,3 +133,40 @@ def test_alerts_detect_state_change_and_curve_inversion():
     items = alerts.compare(prev, new)
     assert len(items) == 2 and "Fragilidade alta" in items[0] and "inverteu" in items[1]
     assert alerts.compare(new, new) == []
+
+
+def test_alerts_do_not_flag_state_changes_caused_by_a_methodology_change():
+    from kondratiev import alerts
+    prev = {"methodology_version": "0.3", "indices": {"usa": {"minsky": {"state": "Fragilidade média", "value": 50}}}, "indicators": []}
+    new = {"methodology_version": "0.4", "indices": {"usa": {"minsky": {"state": "Fragilidade alta", "value": 70}}}, "indicators": [], "runs": []}
+    assert alerts.compare(prev, new) == []                       # no issue just because the rules changed
+    new["runs"] = [{"source": "fred", "status": "failed"}]
+    items = alerts.compare(prev, new)
+    assert "Metodologia atualizada" in items[0] and "fred" in items[1] and len(items) == 2
+
+
+def test_composite_balances_groups():
+    hist_hi = monthly([100 + i for i in range(120)])          # rising level -> high percentile
+    hist_lo = monthly([100 - i for i in range(120)])          # falling level -> low percentile
+    s_hi = A.member_scores("ust_10y", hist_hi, "monthly")     # polarity +1, level
+    s_lo = A.member_scores("ust_10y", hist_lo, "monthly")
+    members = {"r1": s_hi, "r2": s_hi, "r3": s_hi, "p1": s_lo}
+    freqs = {k: "monthly" for k in members}
+    groups = {"r1": "juros", "r2": "juros", "r3": "juros", "p1": "preços"}
+    series, _ = A.composite(members, freqs, A.month_key(date(2009, 12, 1)), groups)
+    plain, _ = A.composite(members, freqs, A.month_key(date(2009, 12, 1)), {})
+    # three correlated rate series no longer outvote the single price series
+    assert abs(series[-1][1] - 50) < abs(plain[-1][1] - 50)
+    assert abs(series[-1][1] - (s_hi[-1][1] + s_lo[-1][1]) / 2) < 1e-9
+
+
+def test_index_summary_rounding_dedup_and_staleness():
+    from kondratiev import export
+    series = [(A.month_key(date(2025, m, 1)), 70.46, 3) for m in range(1, 13)]
+    drivers = [("a", 90.0, date(2025, 1, 1)), ("b", 50.0, date(2025, 1, 1)), ("c", 10.0, date(2025, 1, 1))]
+    rows = [{"id": k, "name": k.upper()} for k in "abc"]
+    out = export._index_summary("minsky", rows, drivers, series, A.month_key(date(2026, 10, 1)), 3)
+    assert out["value"] == 70.5 and "índice 71/100" in out["summary"]            # same integer as the site shows
+    assert "Mais baixas: C (10)." in out["summary"] and out["summary"].count("B (50)") == 1  # no name in both lists
+    assert out["stale"] and out["as_of"] == "2025-12" and "2025-12" in out["summary"]
+    assert out["change_12m"] is None                                                 # no point exactly 12 months earlier

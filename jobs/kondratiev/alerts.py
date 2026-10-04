@@ -15,7 +15,10 @@ def _value(data, ind_id):
 
 def compare(prev, new):
     out = []
+    same_method = prev.get("methodology_version") == new.get("methodology_version")
     for p, label in LABELS.items():
+        if not same_method:
+            break
         a = prev.get("indices", {}).get("usa", {}).get(p, {}).get("state")
         b = new.get("indices", {}).get("usa", {}).get(p, {}).get("state")
         if a and b and a != b:
@@ -27,9 +30,12 @@ def compare(prev, new):
     gap_a, gap_b = _value(prev, "bis_us_credit_gap"), _value(new, "bis_us_credit_gap")
     if gap_a is not None and gap_b is not None and (gap_a >= 10) != (gap_b >= 10):
         out.append(f"**Hiato de crédito sobre o PIB (BIS, EUA)** {'ultrapassou' if gap_b >= 10 else 'voltou abaixo de'} 10 p.p. (agora {gap_b:.1f}).")
-    failed = [r for r in new.get("runs", [])[:5] if r.get("status") == "failed"]
+    failed = [r for r in new.get("runs", []) if r.get("status") == "failed"]  # each run starts from an empty database
     if failed:
         out.append("Falha de coleta em: " + ", ".join(sorted({r["source"] for r in failed})) + ".")
+    if out and not same_method:  # a methodology change alone is not an alert; just explain it next to real ones
+        out.insert(0, f"Metodologia atualizada ({prev.get('methodology_version') or '?'} → {new.get('methodology_version')}): "
+                      "mudanças de estado nesta atualização refletem as regras novas e não são alertadas.")
     return out
 
 

@@ -11,7 +11,7 @@ Monitor de ciclos econômicos de longa duração (Kondratiev, Schumpeter, Perez,
 - **Painel de qualidade** com o resultado de cada coleta.
 
 ## Fontes
-FRED (EUA), Tesouro dos EUA, Banco Mundial, BIS (hiato de crédito), Shiller (CAPE) e SEC EDGAR (investimento das grandes de IA).
+FRED (EUA, incluindo o indicador Buffett do Fed e o Nasdaq), Tesouro dos EUA, Banco Mundial, BIS (hiato de crédito), Shiller (CAPE) e SEC EDGAR (investimento das grandes de tecnologia).
 
 ## Como funciona
 Todo dia o GitHub Actions (`.github/workflows/ingest.yml`) coleta os dados, calcula os índices, monta o site e publica no GitHub Pages. Sem servidor e sem banco externo.
@@ -33,6 +33,7 @@ Aba **Actions → Atualizar dados e publicar site → Run workflow**.
 ```
 cd jobs && pip install -r requirements.txt && pytest
 FRED_API_KEY=... python -m kondratiev.ingest && python -m kondratiev.export ../web/data/data.json
+mkdir -p ../web/public && cp ../web/data/data.json ../web/public/data.json   # o detalhe carrega o histórico daqui
 cd ../web && npm install && npm run dev
 ```
 Os testes usam respostas HTTP e dados sintéticos só para validar o código; nada disso vai ao site.
