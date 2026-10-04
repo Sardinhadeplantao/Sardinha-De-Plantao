@@ -4,7 +4,7 @@ on:
     - cron: "17 6 * * *"   # todo dia, 06:17 UTC
   workflow_dispatch: {}
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
 permissions: { contents: read, pages: write, id-token: write }
 concurrency: { group: pages, cancel-in-progress: true }
 jobs:
@@ -36,6 +36,7 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with: { path: web/out }
   deploy:
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment: { name: github-pages, url: "${{ steps.d.outputs.page_url }}" }
