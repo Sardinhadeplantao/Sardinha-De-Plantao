@@ -195,3 +195,68 @@ def test_derive_skips_missing_inputs():
     from kondratiev import export
     out, notes = export.derive({"shiller_cape": [(date(2024, 9, 1), 35.0)]})
     assert out == {} and notes == {}
+
+
+def test_sahm_rule_and_curve_probability():
+    flat = monthly([4.0] * 20)
+    assert all(abs(v) < 1e-9 for _, v in A.sahm_rule(flat))
+    rising = monthly([4.0] * 15 + [4.3, 4.6, 4.9, 5.2])
+    assert A.sahm_rule(rising)[-1][1] >= 0.5
+    p = dict(A.curve_probability(monthly([2.0, 0.0, -1.0])))
+    assert p[date(2000, 1, 1)] < p[date(2000, 2, 1)] < p[date(2000, 3, 1)]
+    assert abs(p[date(2000, 2, 1)] - 29.7) < 0.5          # Φ(-0.5333) ≈ 29.7%
+
+
+def test_score_change_uses_usable_month_keys():
+    sc = [(100, 40.0, None), (101, 50.0, None), (103, 70.0, None)]
+    assert A.score_change(sc, 3) == 30.0
+    assert A.score_change(sc[:1], 3) is None
+
+
+def test_analogs_pick_nearest_spaced_months_and_report_outcomes():
+    keys = list(range(24000, 24000 + 240))
+    hist = {p: [(k, 50.0 + (10 if (k - 24000) % 60 < 6 else 0)) for k in keys] for p in ("a", "b")}
+    hist["a"][-1] = (keys[-1], 60.0)
+    hist["b"][-1] = (keys[-1], 60.0)
+    rec = [["2002-06-01", "2002-12-01"]]
+    price = [(date(2000 + i // 12, i % 12 + 1, 1), 100 * 1.01 ** i) for i in range(240)]
+    out = A.analogs(hist, rec, price, n=3)
+    ms = out["matches"]
+    assert len(ms) == 3 and all(m["distance"] == 0 for m in ms)
+    ks = sorted(int(m["month"][:4]) * 12 + int(m["month"][5:7]) - 1 for m in ms)
+    assert all(b - a >= 24 for a, b in zip(ks, ks[1:]))
+    assert ms[0]["return_12m"] is not None
+
+
+def test_export_full_catalog_synthetic(tmp_path):
+    """Synthetic data for every catalog series, test-only: exercises watch, analogs and movers."""
+    import json
+    from datetime import datetime
+    from kondratiev import db, export
+    from kondratiev.catalog import CATALOG
+    engine = db.get_engine(f"sqlite:///{tmp_path/'y.db'}")
+    rng = np.random.default_rng(2)
+    keep = [c for c in CATALOG if c["source"] != "derivado"]
+    db.upsert(engine, db.series_catalog, CATALOG, ["id"])
+    rows = []
+    for c in keep:
+        annual = c["frequency"] == "annual"
+        for i in range(60 if annual else 600):
+            d = date(1966 + i, 12, 31) if annual else date(1976 + i // 12, i % 12 + 1, 1)
+            v = float(i % 97 in range(80, 88)) if c["id"] == "fred_usrec" else float(abs(rng.normal(5, 1)) + 1)
+            rows.append(dict(series_id=c["id"], ref_date=d, vintage="latest", value=v, as_of=datetime(2026, 1, 1), is_provisional=False))
+    db.upsert(engine, db.observations, rows, ["series_id", "ref_date", "vintage"])
+    data = export.build(engine)
+    json.dumps(data)
+    assert list(data["indices"]) == ["usa"]
+    assert data["recession_watch"]["total"] >= 5
+    assert data["analogs"] and data["analogs"]["matches"]
+    assert data["movers"] and all("change" in m for m in data["movers"])
+    assert any(i["id"] == "x_sahm" and i["value"] is not None for i in data["indicators"])
+
+
+def test_alerts_sahm_rule_crossing():
+    from kondratiev import alerts
+    mk = lambda v: {"methodology_version": "x", "indicators": [{"id": "x_sahm", "value": v}]}
+    assert any("Sahm" in a for a in alerts.compare(mk(0.3), mk(0.55)))
+    assert not alerts.compare(mk(0.3), mk(0.4))

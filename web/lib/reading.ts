@@ -4,6 +4,8 @@ export const PERSPECTIVES: Record<string, string> = {
   kondratiev: "Kondratiev — preços, juros e produção", schumpeter: "Schumpeter — inovação", perez: "Perez — capital financeiro",
   freeman: "Freeman — paradigmas tecnoeconômicos", minsky: "Minsky — fragilidade financeira",
 };
+/** Every grouping shown on the site: the five lenses plus the short-cycle recession watch (not scored). */
+export const GROUP_LABELS: Record<string, string> = { ...PERSPECTIVES, ciclo: "Ciclo curto — risco de recessão" };
 const MEANING: Record<string, string> = {
   kondratiev: "mais expansão (fase A)", schumpeter: "mais aceleração da inovação", perez: "mais calor financeiro (euforia)",
   freeman: "mais difusão do novo paradigma", minsky: "mais fragilidade financeira",

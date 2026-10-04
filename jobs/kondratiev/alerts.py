@@ -30,6 +30,9 @@ def compare(prev, new):
     gap_a, gap_b = _value(prev, "bis_us_credit_gap"), _value(new, "bis_us_credit_gap")
     if gap_a is not None and gap_b is not None and (gap_a >= 10) != (gap_b >= 10):
         out.append(f"**Hiato de crédito sobre o PIB (BIS, EUA)** {'ultrapassou' if gap_b >= 10 else 'voltou abaixo de'} 10 p.p. (agora {gap_b:.1f}).")
+    sa, sb = _value(prev, "x_sahm"), _value(new, "x_sahm")
+    if sa is not None and sb is not None and (sa >= 0.5) != (sb >= 0.5):
+        out.append(f"**Regra de Sahm (EUA)** {'acionada' if sb >= 0.5 else 'desligada'}: agora {sb:.2f} p.p. (limiar 0,5).")
     failed = [r for r in new.get("runs", []) if r.get("status") == "failed"]  # each run starts from an empty database
     if failed:
         out.append("Falha de coleta em: " + ", ".join(sorted({r["source"] for r in failed})) + ".")

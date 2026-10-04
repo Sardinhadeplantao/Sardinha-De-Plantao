@@ -1,9 +1,9 @@
-# Metodologia (versão 0.5)
+# Metodologia (versão 0.6)
 
 Tudo é descritivo e reproduzível. Nada aqui é previsão nem recomendação de investimento.
 
 ## 1. Dados
-Fontes oficiais: FRED (EUA), Tesouro dos EUA, Banco Mundial, BIS, Shiller, SEC EDGAR e Ember (eletricidade mensal, EUA e mundo).
+Fontes oficiais: FRED (EUA), Tesouro dos EUA, Banco Mundial, BIS, Shiller, SEC EDGAR e Ember (eletricidade mensal dos EUA).
 Para os EUA, séries anuais do Banco Mundial que atrasam 1 a 3 anos foram trocadas por equivalentes trimestrais ou mensais: inflação e deflator (CPI e GDPDEF do FRED),
 PIB real (GDPC1), crédito ao setor privado (crédito total do BIS), capitalização de bolsa (indicador Buffett do Fed Z.1), P&D (investimento em P&D do BEA sobre o PIB)
 e novos negócios (pedidos de abertura de empresas, Census BFS). Renováveis, eólica + solar e intensidade de CO₂
@@ -17,6 +17,12 @@ Recessões marcadas nos gráficos vêm do NBER (série USREC do FRED).
   usando médias mensais do S&P 500 e o CPI do FRED. Supõe lucros reais de 10 anos constantes no intervalo (variam devagar); o detalhe da série avisa.
 - **Juro real do Fed:** Fed funds menos inflação de 12 meses do CPI.
 - **Prêmio de risco das ações:** rendimento do CAPE (100 / CAPE) menos o juro real de 10 anos (TIPS). Quanto menor, mais caras as ações frente aos títulos.
+
+## 1c. Foco nos EUA
+Desde a versão 0.6 o monitor cobre só os Estados Unidos (a visão global foi retirada: tinha poucos indicadores e dados atrasados).
+Novas séries do FRED: produtividade do trabalho (OPHNFB), produção de semicondutores (IPG3344S), índice de commodities do FMI (PALLFNFINDEXM),
+cobre (PCOPPUSDM), VIX (VIXCLS), aperto do crédito bancário a empresas (DRTSCILM), inadimplência no cartão (DRCCLACBS), pedidos de seguro-desemprego (ICSA),
+probabilidade de recessão Chauvet-Piger (RECPROUSM156N) e licenças de construção (PERMIT). Do Ember: demanda de eletricidade dos EUA.
 
 ## 2. Estatísticas de cada indicador
 - **Nível ou variação:** séries que crescem ao longo do tempo (índices de preço, produção, M2, Nasdaq, capex, patentes) são lidas pela **variação** de 12 meses
@@ -33,7 +39,7 @@ Recessões marcadas nos gráficos vêm do NBER (série USREC do FRED).
 3. Se a polaridade é negativa, inverte-se (100 menos o percentil).
 4. **Subgrupos equilibrados:** o índice é a média dos subgrupos, e cada subgrupo é a média dos seus indicadores (`GROUPS`). Assim, cinco séries de juros, muito
    parecidas entre si, não pesam mais que os preços ou a atividade. Subgrupos: Kondratiev = preços, juros, atividade; Minsky = alavancagem, preço do risco,
-   curva e política (inclui o juro real do Fed); Perez = valuation, investimento. Exige pelo menos 3 indicadores no mês, senão "dados insuficientes".
+   curva e política (inclui o juro real do Fed); Kondratiev também tem o subgrupo commodities (PPI, petróleo, índice do FMI, cobre); Perez = valuation, investimento. Exige pelo menos 3 indicadores no mês, senão "dados insuficientes".
 5. Defasagem de publicação assumida: anual 12 meses, trimestral 3, mensal 1. Uma leitura sai do cálculo quando fica velha demais: anuais 36 meses após o fim
    do ano de referência, trimestrais 12 meses após o trimestre, mensais 4 meses e diárias ou semanais 3 meses.
 6. **Data do índice:** cada índice mostra o mês do seu último valor. Se esse mês tem mais de 3 meses, o índice é marcado como desatualizado.
@@ -53,6 +59,24 @@ Para cada ótica dos EUA, compara-se a média do índice nos 24 meses anteriores
 Para Minsky (limiar 60) e Perez (limiar 70) mede-se também quantas recessões foram precedidas por um cruzamento do limiar e a taxa de alarmes falsos.
 Limites: dentro da amostra, dados revisados (não são os divulgados na época) e poucas recessões. Um resultado fraco é informação válida.
 
+## 4b. Termômetro de recessão (ciclo curto)
+Sinais públicos, cada um com regra fixa; não entram nas óticas:
+- **Regra de Sahm** (calculada do desemprego): média de 3 meses menos a menor média de 3 meses dos 12 meses anteriores; ligado a partir de 0,5 p.p.
+- **Probabilidade pela curva de juros** (modelo do Fed de Nova York): Φ(−0,5333 − 0,6330 × (10 anos − 3 meses)), média do mês; ligado a partir de 30%.
+  Aproximação: o Fed usa a letra de 3 meses em base equivalente a título.
+- **Probabilidade Chauvet-Piger** (FRED): ligado a partir de 20%.
+- **Seguro-desemprego**: média de 4 semanas 20% acima da menor média de 4 semanas das últimas 52 semanas.
+- **Condições financeiras do Chicago Fed** acima de zero; **curva 10 anos − 3 meses** invertida.
+
+## 4c. Períodos parecidos com hoje
+Para os meses em que Kondratiev, Perez e Minsky têm valor (as óticas com histórico mensal mais longo), mede-se a distância euclidiana entre o vetor das três
+e o do mês atual. Mostram-se os 5 meses mais próximos, com pelo menos 24 meses entre si e pelo menos 24 meses de idade, e o que veio depois: início de recessão
+do NBER em até 24 meses e retorno real anualizado do S&P 500 com dividendos (Shiller) em 1 e 3 anos. Poucos casos, dentro da amostra.
+
+## 4d. O que mudou e relógio do ciclo
+- **O que mudou:** variação, em 3 meses, da pontuação de cada indicador na sua ótica (as 8 maiores em valor absoluto) e variação de 1, 3 e 12 meses de cada índice.
+- **Relógio do ciclo:** trajetória mensal de duas óticas uma contra a outra (padrão Perez × Minsky), escolhidas pelo leitor.
+
 ## 5. Contexto de valuation
 Retorno real anualizado do S&P 500 (retorno total real de Shiller) em 1, 5 e 10 anos depois dos meses em que o CAPE esteve dentro de ±10 pontos percentuais do percentil atual, contra todos os meses.
 Descritivo, dentro da amostra, janelas sobrepostas (poucos episódios independentes). Não é previsão. Quando o arquivo público do Shiller está desatualizado, o site avisa.
@@ -64,9 +88,11 @@ acumulados no ano, usando só períodos que começam no início do ano fiscal; t
 
 ## 7. Alertas
 A cada atualização na branch principal, compara-se com o `data.json` publicado antes. Abre-se uma Issue no GitHub quando: uma ótica dos EUA muda de estado, a curva 10 anos − 2 anos inverte ou volta a ser positiva,
-o hiato de crédito do BIS cruza 10 p.p., ou alguma fonte falha na coleta. Quando a versão da metodologia muda, mudanças de estado não geram alerta (refletem regras novas, não dados).
+o hiato de crédito do BIS cruza 10 p.p., a regra de Sahm cruza 0,5 p.p., ou alguma fonte falha na coleta. Quando a versão da metodologia muda, mudanças de estado não geram alerta (refletem regras novas, não dados).
 
 ## 8. Histórico de versões
+- 0.6: só EUA; subgrupo commodities; produtividade, semicondutores, demanda de eletricidade, VIX, crédito bancário e inadimplência nas óticas;
+  termômetro de recessão; períodos parecidos; o que mudou; relógio do ciclo; download em CSV.
 - 0.5: fontes mais frescas para os EUA (FRED, BIS e Ember no lugar de séries anuais do Banco Mundial); CAPE estendido até o mês atual; juro real do Fed e prêmio de risco
   das ações; novo layout com resumo, composição por subgrupo, cruzamentos e tabela pesquisável.
 - 0.4: subgrupos equilibrados; leitura por variação para séries com tendência; data e aviso de desatualização dos índices; extremos atuais; indicador Buffett (Fed Z.1) e Nasdaq no lugar
@@ -79,4 +105,3 @@ o hiato de crédito do BIS cruza 10 p.p., ou alguma fonte falha na coleta. Quand
 - A datação da "6ª onda" é interpretativa.
 - Os indicadores do Banco Mundial têm atraso de 1 a 5 anos; o arquivo público do Shiller pode ficar meses sem atualização
   (o CAPE é estendido por cálculo, mas os lucros só se atualizam quando o arquivo é atualizado).
-- A visão global tem menos indicadores; quando há menos de 3 por ótica, o sistema mostra "dados insuficientes".
