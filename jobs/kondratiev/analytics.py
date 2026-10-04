@@ -51,7 +51,7 @@ SCORING = {
 # publication lag (months) before a reading can be used, and max age (months) before it is considered stale
 LAG = {"annual": 12, "quarterly": 3, "monthly": 1, "weekly": 0, "daily": 0}
 MAX_AGE = {"annual": 36, "quarterly": 9, "monthly": 3, "weekly": 3, "daily": 3}
-MIN_OBS = {"annual": 15, "quarterly": 40, "monthly": 60, "weekly": 60, "daily": 60}
+MIN_OBS = {"annual": 15, "quarterly": 28, "monthly": 60, "weekly": 60, "daily": 60}
 MIN_MEMBERS = 3
 
 STATES = {
