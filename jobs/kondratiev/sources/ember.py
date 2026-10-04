@@ -25,7 +25,7 @@ def _rows(session=None):
             keep = []
             for row in reader:
                 cat = (row.get("Category") or "").lower()
-                if cat in ("electricity generation", "power sector emissions"):
+                if cat in ("electricity generation", "power sector emissions", "electricity demand"):
                     keep.append(row)
             if not keep:
                 raise RuntimeError(f"Ember layout changed: columns {reader.fieldnames}")

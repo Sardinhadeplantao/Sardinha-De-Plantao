@@ -1,30 +1,31 @@
-"""Series catalog. `scope`: 'usa' (main focus) or 'global'. IDs are validated against each source API
+"""Series catalog (United States). `perspective` is one of the five lenses, or 'ciclo' for the short-cycle
+recession watch (shown, not scored in any lens). IDs are validated against each source API
 (`python -m kondratiev.validate`); a series without data shows as 'Sem dados' rather than failing the run."""
 
 _WB_URL = "https://data.worldbank.org/indicator/{code}?locations={loc}"
 
-# (perspective, name, World Bank code, unit, rationale, available_for_world)
+# (perspective, name, World Bank code, unit, rationale)
 # For the USA, series with a fresher official substitute (FRED, BIS) are not loaded from the World Bank.
 _WB_USA_REPLACED = {"FP.CPI.TOTL.ZG", "NY.GDP.DEFL.KD.ZG", "NY.GDP.MKTP.KD.ZG", "FR.INR.RINR", "CM.MKT.LCAP.GD.ZS",
                     "CM.MKT.TRAD.GD.ZS", "FS.AST.PRVT.GD.ZS", "FS.AST.DOMS.GD.ZS", "FB.BNK.CAPA.ZS", "GB.XPD.RSDV.GD.ZS"}
 _WB = [
-    ("kondratiev", "Inflação ao consumidor", "FP.CPI.TOTL.ZG", "% a.a.", "Preços acelerando caracterizam a fase A; desinflação prolongada, a fase B.", True),
-    ("kondratiev", "Deflator do PIB", "NY.GDP.DEFL.KD.ZG", "% a.a.", "Medida ampla de preços: sobe na expansão, cai na contração longa.", True),
-    ("kondratiev", "Crescimento do PIB", "NY.GDP.MKTP.KD.ZG", "% a.a.", "Ritmo de produção: mais forte na fase A do ciclo longo.", True),
-    ("kondratiev", "Taxa de juros real", "FR.INR.RINR", "% a.a.", "Custo real do capital; juros reais altos marcam fases tardias do ciclo.", False),
-    ("schumpeter", "P&D como % do PIB", "GB.XPD.RSDV.GD.ZS", "% do PIB", "Esforço de inovação: base de novos clusters tecnológicos.", True),
-    ("schumpeter", "Patentes depositadas (residentes)", "IP.PAT.RESD", "patentes", "Fluxo de invenções, que antecede a onda de inovações.", True),
-    ("schumpeter", "Pesquisadores por milhão de habitantes", "SP.POP.SCIE.RD.P6", "por milhão", "Capacidade humana de inovar.", True),
-    ("schumpeter", "Exportações de alta tecnologia", "TX.VAL.TECH.MF.ZS", "% das exportações industriais", "Difusão comercial das tecnologias novas.", True),
-    ("perez", "Capitalização de mercado das ações", "CM.MKT.LCAP.GD.ZS", "% do PIB", "Indicador Buffett: capital financeiro descolado do produtivo sinaliza frenesi.", True),
-    ("perez", "Valor das ações negociadas", "CM.MKT.TRAD.GD.ZS", "% do PIB", "Intensidade especulativa do mercado.", True),
-    ("perez", "Exportações de bens de TIC", "TX.VAL.ICTG.ZS.UN", "% das exportações de bens", "Peso do paradigma tecnológico atual (informação).", True),
-    ("freeman", "Energia renovável no consumo final", "EG.FEC.RNEW.ZS", "% do consumo", "Difusão do novo insumo-chave energético.", True),
-    ("freeman", "Emissões de CO₂ per capita", "EN.GHG.CO2.PC.CE.AR5", "t por pessoa", "Queda sinaliza descarbonização da base produtiva.", True),
-    ("freeman", "Intensidade energética do PIB", "EG.EGY.PRIM.PP.KD", "MJ por US$ de PIB", "Queda sinaliza eficiência do paradigma vigente.", True),
-    ("minsky", "Crédito ao setor privado", "FS.AST.PRVT.GD.ZS", "% do PIB", "Alavancagem do setor privado: excesso gera fragilidade.", True),
-    ("minsky", "Crédito doméstico", "FS.AST.DOMS.GD.ZS", "% do PIB", "Endividamento total da economia.", False),
-    ("minsky", "Capital bancário sobre ativos", "FB.BNK.CAPA.ZS", "%", "Colchão dos bancos contra perdas.", False),
+    ("kondratiev", "Inflação ao consumidor", "FP.CPI.TOTL.ZG", "% a.a.", "Preços acelerando caracterizam a fase A; desinflação prolongada, a fase B."),
+    ("kondratiev", "Deflator do PIB", "NY.GDP.DEFL.KD.ZG", "% a.a.", "Medida ampla de preços: sobe na expansão, cai na contração longa."),
+    ("kondratiev", "Crescimento do PIB", "NY.GDP.MKTP.KD.ZG", "% a.a.", "Ritmo de produção: mais forte na fase A do ciclo longo."),
+    ("kondratiev", "Taxa de juros real", "FR.INR.RINR", "% a.a.", "Custo real do capital; juros reais altos marcam fases tardias do ciclo."),
+    ("schumpeter", "P&D como % do PIB", "GB.XPD.RSDV.GD.ZS", "% do PIB", "Esforço de inovação: base de novos clusters tecnológicos."),
+    ("schumpeter", "Patentes depositadas (residentes)", "IP.PAT.RESD", "patentes", "Fluxo de invenções, que antecede a onda de inovações."),
+    ("schumpeter", "Pesquisadores por milhão de habitantes", "SP.POP.SCIE.RD.P6", "por milhão", "Capacidade humana de inovar."),
+    ("schumpeter", "Exportações de alta tecnologia", "TX.VAL.TECH.MF.ZS", "% das exportações industriais", "Difusão comercial das tecnologias novas."),
+    ("perez", "Capitalização de mercado das ações", "CM.MKT.LCAP.GD.ZS", "% do PIB", "Indicador Buffett: capital financeiro descolado do produtivo sinaliza frenesi."),
+    ("perez", "Valor das ações negociadas", "CM.MKT.TRAD.GD.ZS", "% do PIB", "Intensidade especulativa do mercado."),
+    ("perez", "Exportações de bens de TIC", "TX.VAL.ICTG.ZS.UN", "% das exportações de bens", "Peso do paradigma tecnológico atual (informação)."),
+    ("freeman", "Energia renovável no consumo final", "EG.FEC.RNEW.ZS", "% do consumo", "Difusão do novo insumo-chave energético."),
+    ("freeman", "Emissões de CO₂ per capita", "EN.GHG.CO2.PC.CE.AR5", "t por pessoa", "Queda sinaliza descarbonização da base produtiva."),
+    ("freeman", "Intensidade energética do PIB", "EG.EGY.PRIM.PP.KD", "MJ por US$ de PIB", "Queda sinaliza eficiência do paradigma vigente."),
+    ("minsky", "Crédito ao setor privado", "FS.AST.PRVT.GD.ZS", "% do PIB", "Alavancagem do setor privado: excesso gera fragilidade."),
+    ("minsky", "Crédito doméstico", "FS.AST.DOMS.GD.ZS", "% do PIB", "Endividamento total da economia."),
+    ("minsky", "Capital bancário sobre ativos", "FB.BNK.CAPA.ZS", "%", "Colchão dos bancos contra perdas."),
 ]
 
 # (id, perspective, layer, FRED code, name, unit, frequency, stale_after_days, rationale)
@@ -51,6 +52,16 @@ _FRED = [
     ("fred_tdsp", "minsky", "regime", "TDSP", "Serviço da dívida das famílias", "% da renda disponível", "quarterly", 280, "Peso da dívida sobre a renda: base da fragilidade financeira de Minsky."),
     ("fred_m2sl", "minsky", "regime", "M2SL", "Oferta de moeda M2", "US$ bilhões", "monthly", 90, "Liquidez disponível para alimentar ativos e crédito."),
     ("fred_mortgage30us", "minsky", "timing", "MORTGAGE30US", "Juros do financiamento imobiliário 30 anos", "% a.a.", "weekly", 14, "Custo do crédito imobiliário, setor central em ciclos de crédito."),
+    ("fred_ophnfb", "schumpeter", "regime", "OPHNFB", "Produtividade do trabalho (setor empresarial não agrícola)", "índice 2017=100", "quarterly", 200, "Produção por hora trabalhada: quando um cluster de inovação se difunde, a produtividade acelera (anos 1990, possivelmente a IA agora)."),
+    ("fred_semis", "schumpeter", "regime", "IPG3344S", "Produção de semicondutores e componentes eletrônicos", "índice 2017=100", "monthly", 90, "Produção física de chips nos EUA: o insumo-chave do paradigma da informação e da IA."),
+    ("fred_commod", "kondratiev", "regime", "PALLFNFINDEXM", "Índice de preços de commodities (FMI)", "índice 2016=100", "monthly", 90, "Preços de matérias-primas são o termômetro clássico das ondas longas de Kondratiev."),
+    ("fred_copper", "kondratiev", "timing", "PCOPPUSDM", "Cobre (preço internacional)", "US$ por tonelada", "monthly", 90, "Metal da eletrificação e da construção: sobe na expansão industrial."),
+    ("fred_vix", "minsky", "timing", "VIXCLS", "Volatilidade implícita do S&P 500 (VIX)", "pontos", "daily", 7, "Medo precificado no mercado de opções: dispara quando a fragilidade se revela."),
+    ("fred_sloos", "minsky", "regime", "DRTSCILM", "Bancos apertando o crédito a empresas (pesquisa do Fed)", "% líquido dos bancos", "quarterly", 200, "Saldo de bancos que endureceram as regras de empréstimo: crédito escasso costuma anteceder recessões."),
+    ("fred_ccdelinq", "minsky", "regime", "DRCCLACBS", "Inadimplência no cartão de crédito", "% dos saldos", "quarterly", 200, "Atraso das famílias no crédito mais caro: primeiro sinal de aperto no orçamento."),
+    ("fred_icsa", "ciclo", "timing", "ICSA", "Pedidos iniciais de seguro-desemprego", "pedidos por semana", "weekly", 14, "Demissões em tempo quase real: uma alta sustentada é um dos primeiros sinais de recessão."),
+    ("fred_recprob", "ciclo", "regime", "RECPROUSM156N", "Probabilidade de recessão (modelo Chauvet-Piger)", "%", "monthly", 120, "Modelo estatístico com emprego, produção, renda e vendas que estima a chance de a economia já estar em recessão."),
+    ("fred_permit", "ciclo", "timing", "PERMIT", "Licenças de construção residencial", "mil unidades por ano", "monthly", 90, "Construção é um dos setores que mais antecipam o ciclo: licenças caem antes das recessões."),
 ]
 
 _TREASURY = [("ust_3m", "3 Mo", "3 meses", "regime", "minsky"), ("ust_2y", "2 Yr", "2 anos", "timing", "minsky"),
@@ -61,9 +72,9 @@ _TURL = "https://home.treasury.gov/resource-center/data-chart-center/interest-ra
 
 def _build():
     out = []
-    for scope, country, loc, label in (("usa", "USA", "US", "EUA"), ("global", "WLD", "1W", "Mundo")):
-        for persp, name, code, unit, why, world_ok in _WB:
-            if (scope == "global" and not world_ok) or (scope == "usa" and code in _WB_USA_REPLACED):
+    for scope, country, loc, label in (("usa", "USA", "US", "EUA"),):
+        for persp, name, code, unit, why in _WB:
+            if code in _WB_USA_REPLACED:
                 continue
             out.append(dict(id=f"wb_{country.lower()}_{code.lower().replace('.', '_')}", scope=scope, perspective=persp,
                             layer="structure", source="worldbank", code=code, name=f"{name} ({label})", country=country,
@@ -88,14 +99,16 @@ def _build():
                     unit="% do PIB", frequency="quarterly", role="fragility",
                     rationale="Toda a dívida de famílias e empresas (bancos e mercado) sobre o PIB: o estoque de alavancagem que sustenta o ciclo de Minsky.",
                     source_url="https://data.bis.org/topics/TOTAL_CREDIT", stale_after_days=280))
-    for scope, area, label in (("usa", "USA", "EUA"), ("global", "World", "Mundo")):
+    for scope, area, label in (("usa", "USA", "EUA"),):
         for key, variable, unit, name, why in (
                 ("renew", "Electricity generation|Renewables|%", "% da geração", "Renováveis na geração de eletricidade",
                  "Difusão do novo insumo-chave energético, medida todo mês."),
                 ("windsolar", "Electricity generation|Wind and Solar|%", "% da geração", "Eólica e solar na geração de eletricidade",
                  "As tecnologias de custo marginal quase zero que definem o novo paradigma energético."),
                 ("co2int", "Power sector emissions|CO2 intensity|gCO2/kWh", "gCO₂/kWh", "Intensidade de carbono da eletricidade",
-                 "Emissões por unidade de energia elétrica: a queda mede a substituição do paradigma fóssil.")):
+                 "Emissões por unidade de energia elétrica: a queda mede a substituição do paradigma fóssil."),
+                ("demand", "Electricity demand|Demand|TWh", "TWh por mês", "Demanda de eletricidade",
+                 "Consumo total de eletricidade: depois de 15 anos estável, volta a crescer com data centers de IA e eletrificação.")):
             out.append(dict(id=f"ember_{area.lower()}_{key}", scope=scope, perspective="freeman", layer="regime", source="ember",
                             code=f"{area}|{variable}", name=f"{name} ({label})", country=area, unit=unit, frequency="monthly",
                             role="procyclical", rationale=why, source_url="https://ember-energy.org/data/", stale_after_days=120))
@@ -109,6 +122,16 @@ def _build():
                     country="USA", unit="p.p.", frequency="monthly", role="valuation_excess",
                     rationale="Calculado cruzando o CAPE (Shiller, estendido com S&P 500 e CPI do FRED) e o juro real dos TIPS: quanto menor, menos as ações compensam o risco frente aos títulos — sinal de euforia.",
                     source_url="https://fred.stlouisfed.org/series/DFII10", stale_after_days=90))
+    out.append(dict(id="x_sahm", scope="usa", perspective="ciclo", layer="timing", source="derivado",
+                    code="UNRATE: média 3m − mínima 12m", name="Regra de Sahm (desemprego) (EUA)", country="USA", unit="p.p.",
+                    frequency="monthly", role="context",
+                    rationale="Calculada a partir da taxa de desemprego (FRED): quando a média de 3 meses sobe 0,5 p.p. acima da mínima dos 12 meses anteriores, a economia historicamente já entrou em recessão.",
+                    source_url="https://fred.stlouisfed.org/series/UNRATE", stale_after_days=90))
+    out.append(dict(id="x_curve_prob", scope="usa", perspective="ciclo", layer="timing", source="derivado",
+                    code="Φ(−0,5333 − 0,6330 × (10a − 3m))", name="Probabilidade de recessão em 12 meses pela curva de juros (EUA)",
+                    country="USA", unit="%", frequency="monthly", role="context",
+                    rationale="Calculada com o modelo do Fed de Nova York (Estrella e Mishkin) a partir da diferença entre os juros de 10 anos e 3 meses (FRED, média do mês).",
+                    source_url="https://www.newyorkfed.org/research/capital_markets/ycfaq", stale_after_days=60))
     out.append(dict(id="shiller_cape", scope="usa", perspective="perez", layer="regime", source="shiller", code="CAPE",
                     name="CAPE de Shiller — S&P 500 (EUA)", country="USA", unit="múltiplo", frequency="monthly",
                     role="valuation_excess",

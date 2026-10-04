@@ -4,16 +4,13 @@ import { Chart } from "./Chart";
 import { DetailModal } from "./DetailModal";
 import type { Data, Indicator, Index } from "@/lib/data";
 import { PERSPECTIVES, bases } from "@/lib/reading";
-
-// Lens identity colors: the validated categorical palette (dark steps), one fixed hue per lens.
-const TONE: Record<string, string> = { kondratiev: "#3987e5", schumpeter: "#d95926", perez: "#199e70", freeman: "#c98500", minsky: "#d55181" };
-const LENSES = Object.keys(PERSPECTIVES);
-const SHORT = (p: string) => PERSPECTIVES[p].split(" — ")[0];
+import { LENSES, SHORT, TONE, fmt } from "@/lib/ui";
+import { AnalogsSection, CycleClock, Movers, RecessionWatchSection, downloadCsv } from "./Insights";
 const BADGE = { ok: "bg-emerald-950 text-emerald-300 ring-emerald-800", atrasado: "bg-amber-950 text-amber-300 ring-amber-800", obsoleto: "bg-red-950 text-red-300 ring-red-800" };
 const ZONE: Record<string, string> = { "muito baixo": "text-sky-300", baixo: "text-sky-400", neutro: "text-slate-300", alto: "text-amber-300", "muito alto": "text-red-300" };
-const fmt = (n: number, d = 2) => n.toLocaleString("pt-BR", { maximumFractionDigits: d });
-const SECTIONS: [string, string][] = [["resumo", "Resumo"], ["oticas", "Óticas"], ["cruzamentos", "Cruzamentos"], ["indicadores", "Indicadores"],
-  ["valuation", "Valuation"], ["validacao", "Validação"], ["dados", "Dados"]];
+const SECTIONS: [string, string][] = [["resumo", "Resumo"], ["recessao", "Recessão"], ["oticas", "Óticas"], ["relogio", "Relógio"],
+  ["analogos", "Períodos parecidos"], ["cruzamentos", "Cruzamentos"], ["indicadores", "Indicadores"], ["valuation", "Valuation"],
+  ["validacao", "Validação"], ["dados", "Dados"]];
 
 /** State tone with its own label: the color never carries the meaning alone. */
 function stateTone(p: string, v: number | null) {
@@ -40,7 +37,10 @@ function SummaryTile({ p, idx, cuts }: { p: string; idx: Index | undefined; cuts
       {idx?.value != null ? (
         <>
           <div className="mt-1 flex items-baseline gap-2"><span className="text-2xl font-bold text-slate-100">{Math.round(idx.value)}</span><span className="text-xs text-slate-500">/100</span>
-            {idx.change_12m != null && <span className="text-xs text-slate-400">{idx.change_12m >= 0 ? "▲" : "▼"}{Math.round(Math.abs(idx.change_12m))} em 12m</span>}</div>
+          </div>
+          <div className="text-[11px] text-slate-400">
+            {idx.change_3m != null && <span>{idx.change_3m >= 0 ? "▲" : "▼"}{Math.round(Math.abs(idx.change_3m))} em 3m</span>}
+            {idx.change_12m != null && <span className="ml-2">{idx.change_12m >= 0 ? "▲" : "▼"}{Math.round(Math.abs(idx.change_12m))} em 12m</span>}</div>
           <Gauge value={idx.value} cuts={cuts} color={TONE[p]} />
           <div className={`mt-1 text-[11px] ${idx.stale ? "text-amber-400" : "text-slate-500"}`}>dado de {idx.as_of}{idx.stale ? " · desatualizado" : ""}</div>
         </>
@@ -111,7 +111,7 @@ function PercentileBar({ p }: { p: number }) {
   );
 }
 
-function IndicatorTable({ list, onPick }: { list: Indicator[]; onPick: (i: Indicator) => void }) {
+function IndicatorTable({ list, onPick, data }: { list: Indicator[]; onPick: (i: Indicator) => void; data: Data }) {
   const [q, setQ] = useState("");
   const [lens, setLens] = useState("todas");
   const [fresh, setFresh] = useState("todos");
@@ -123,7 +123,7 @@ function IndicatorTable({ list, onPick }: { list: Indicator[]; onPick: (i: Indic
     const pct = (i: Indicator) => bases(i)[0]?.stats.percentile ?? 50;
     if (sort === "extremo") r = [...r].sort((a, b) => Math.abs(pct(b) - 50) - Math.abs(pct(a) - 50));
     else if (sort === "frescor") r = [...r].sort((a, b) => (b.ref_date ?? "").localeCompare(a.ref_date ?? ""));
-    else r = [...r].sort((a, b) => LENSES.indexOf(a.perspective) - LENSES.indexOf(b.perspective) || a.name.localeCompare(b.name));
+    else r = [...r].sort((a, b) => order(a.perspective) - order(b.perspective) || a.name.localeCompare(b.name));
     return r;
   }, [list, q, lens, fresh, sort]);
   const ctl = "rounded border border-slate-700 bg-slate-900 px-2 py-1 text-xs text-slate-200";
@@ -132,7 +132,7 @@ function IndicatorTable({ list, onPick }: { list: Indicator[]; onPick: (i: Indic
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar indicador ou código…" className={`${ctl} w-56`} aria-label="Buscar" />
         <select value={lens} onChange={(e) => setLens(e.target.value)} className={ctl} aria-label="Ótica">
-          <option value="todas">Todas as óticas</option>{LENSES.map((p) => <option key={p} value={p}>{SHORT(p)}</option>)}
+          <option value="todas">Todas as óticas</option>{[...LENSES, "ciclo"].map((p) => <option key={p} value={p}>{SHORT(p)}</option>)}
         </select>
         <select value={fresh} onChange={(e) => setFresh(e.target.value)} className={ctl} aria-label="Frescor">
           <option value="todos">Qualquer frescor</option><option value="ok">Só ok</option><option value="atrasado">Atrasados</option><option value="obsoleto">Obsoletos</option>
@@ -141,6 +141,7 @@ function IndicatorTable({ list, onPick }: { list: Indicator[]; onPick: (i: Indic
           <option value="otica">Ordenar por ótica</option><option value="extremo">Mais extremos primeiro</option><option value="frescor">Mais recentes primeiro</option>
         </select>
         <span className="text-xs text-slate-500">{rows.length} indicadores</span>
+        <button onClick={() => downloadCsv(rows, data)} className={`${ctl} ml-auto hover:bg-slate-800`}>Baixar CSV</button>
       </div>
       <div className="mt-2 overflow-x-auto rounded-xl border border-slate-800">
         <table className="w-full min-w-[860px] text-left text-xs">
@@ -176,6 +177,8 @@ function IndicatorTable({ list, onPick }: { list: Indicator[]; onPick: (i: Indic
     </>
   );
 }
+
+const order = (p: string) => (p === "ciclo" ? -1 : LENSES.indexOf(p));
 
 function monthsBetween(yyyymm: string, iso: string) {
   return Number(iso.slice(0, 4)) * 12 + Number(iso.slice(5, 7)) - (Number(yyyymm.slice(0, 4)) * 12 + Number(yyyymm.slice(5, 7)));
@@ -244,10 +247,9 @@ function Validation({ data }: { data: Data }) {
 }
 
 export function Dashboard({ data }: { data: Data }) {
-  const [scope, setScope] = useState<"usa" | "global">("usa");
   const [open, setOpen] = useState<Indicator | null>(null);
-  const indices = data.indices[scope];
-  const all = useMemo(() => data.indicators.filter((i) => i.scope === scope), [data, scope]);
+  const indices = data.indices.usa;
+  const all = data.indicators;
   const list = useMemo(() => all.filter((i) => i.value !== null), [all]);
   const crossed = list.filter((i) => i.note);
   const missing = all.filter((i) => i.value === null);
@@ -263,14 +265,9 @@ export function Dashboard({ data }: { data: Data }) {
             <h1 className="text-lg font-bold">Kondratiev Monitor</h1>
             <p className="text-[11px] text-slate-400">{data.generated_at ? `Atualizado em ${data.generated_at.slice(0, 16).replace("T", " ")} UTC · metodologia v${data.methodology_version}` : "Sem dados ainda"}</p>
           </div>
-          <div className="inline-flex rounded-lg border border-slate-700 p-0.5 text-xs" role="group" aria-label="Escopo">
-            {([["usa", "Estados Unidos"], ["global", "Global"]] as const).map(([k, l]) => (
-              <button key={k} onClick={() => setScope(k)} aria-pressed={scope === k} className={`rounded px-3 py-1 ${scope === k ? "bg-sky-900 text-sky-100" : "text-slate-300"}`}>{l}</button>
-            ))}
-          </div>
         </div>
         <nav className="mt-2 flex gap-3 overflow-x-auto text-xs text-slate-400" aria-label="Seções">
-          {SECTIONS.filter(([id]) => scope === "usa" || !["cruzamentos", "valuation", "validacao"].includes(id)).map(([id, l]) => (
+          {SECTIONS.map(([id, l]) => (
             <a key={id} href={`#${id}`} className="whitespace-nowrap hover:text-slate-100">{l}</a>
           ))}
         </nav>
@@ -281,15 +278,15 @@ export function Dashboard({ data }: { data: Data }) {
       {!empty && (
         <>
           <section id="resumo" className="scroll-mt-24 mt-6">
-            <h2 className="text-xl font-bold">Onde estamos no ciclo — {scope === "usa" ? "Estados Unidos" : "Mundo"}</h2>
+            <h2 className="text-xl font-bold">Onde estamos no ciclo — Estados Unidos</h2>
             <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
               {LENSES.map((p) => <SummaryTile key={p} p={p} idx={indices[p]} cuts={cuts(p)} />)}
             </div>
-            {(data.extremes?.[scope]?.length ?? 0) > 0 && (
+            {(data.extremes?.usa?.length ?? 0) > 0 && (
               <div className="mt-4 rounded-xl border border-slate-800 bg-slate-900/60 p-3">
                 <h3 className="text-sm font-semibold text-slate-200">Nos extremos da própria história agora</h3>
                 <ul className="mt-2 flex flex-wrap gap-1">
-                  {data.extremes[scope].map((e) => {
+                  {data.extremes.usa.map((e) => {
                     const ind = list.find((i) => i.id === e.id);
                     return (
                       <li key={e.id}>
@@ -302,11 +299,14 @@ export function Dashboard({ data }: { data: Data }) {
                 </ul>
               </div>
             )}
+            <Movers movers={data.movers ?? []} indicators={list} onPick={setOpen} />
             <p className="mt-3 text-xs text-slate-400">
               Cada ótica é um índice de 0 a 100 feito da posição de cada indicador na sua própria história (percentil sem olhar o futuro), com subgrupos de peso igual.
               Os estados seguem regras fixas da metodologia. Leitura descritiva de contexto: não prevê nada e não é recomendação de investimento.
             </p>
           </section>
+
+          <RecessionWatchSection watch={data.recession_watch} indicators={list} onPick={setOpen} />
 
           <section id="oticas" className="scroll-mt-24 mt-10">
             <h2 className="text-xl font-bold">As cinco óticas ao longo do tempo</h2>
@@ -314,6 +314,9 @@ export function Dashboard({ data }: { data: Data }) {
               {LENSES.map((p) => indices[p] && <IndexPanel key={p} p={p} idx={indices[p]} cuts={cuts(p)} recessions={data.recessions} onPick={setOpen} indicators={list} />)}
             </div>
           </section>
+
+          <CycleClock indices={indices} />
+          <AnalogsSection analogs={data.analogs} />
 
           {crossed.length > 0 && (
             <section id="cruzamentos" className="scroll-mt-24 mt-10">
@@ -339,11 +342,11 @@ export function Dashboard({ data }: { data: Data }) {
           <section id="indicadores" className="scroll-mt-24 mt-10">
             <h2 className="text-xl font-bold">Todos os indicadores</h2>
             <p className="text-sm text-slate-400">Clique em uma linha para ver o histórico completo, a tendência, os extremos e a leitura. Séries que sempre crescem são lidas pela variação.</p>
-            <IndicatorTable list={list} onPick={setOpen} />
+            <IndicatorTable list={list} onPick={setOpen} data={data} />
           </section>
 
-          {scope === "usa" && <Valuation data={data} />}
-          {scope === "usa" && <Validation data={data} />}
+          <Valuation data={data} />
+          <Validation data={data} />
         </>
       )}
 
@@ -354,7 +357,7 @@ export function Dashboard({ data }: { data: Data }) {
           <span className={`rounded px-2 py-1 ring-1 ${BADGE.atrasado}`}>{counts.atrasado} atrasados</span>
           <span className={`rounded px-2 py-1 ring-1 ${BADGE.obsoleto}`}>{counts.obsoleto} obsoletos</span>
         </div>
-        {missing.length > 0 && <p className="mt-2 text-xs text-amber-400">Séries sem dados nesta visão ({missing.length}): {missing.map((m) => m.name).join("; ")}.</p>}
+        {missing.length > 0 && <p className="mt-2 text-xs text-amber-400">Séries sem dados ({missing.length}): {missing.map((m) => m.name).join("; ")}.</p>}
         {data.runs.length === 0 ? <p className="mt-2 text-sm text-slate-500">Nenhuma execução registrada.</p> : (
           <div className="mt-3 overflow-x-auto rounded-xl border border-slate-800">
             <table className="w-full text-left text-xs"><thead className="bg-slate-900 text-slate-400"><tr><th className="px-3 py-2">Fonte</th><th>Início</th><th>Status</th><th>Linhas</th><th>Erro</th></tr></thead>

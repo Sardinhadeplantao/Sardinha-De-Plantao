@@ -10,8 +10,8 @@ export const withStatus = (i: Indicator): Indicator => ({ ...i, status: i.ref_da
 /** Reads data/data.json produced by the ingestion job (real data only). Missing file = empty state. */
 export function loadData(): Data {
   const file = path.join(process.cwd(), "data", "data.json");
-  const empty: Data = { generated_at: null, methodology_version: null, indicators: [], indices: { usa: {}, global: {} }, recessions: [],
-    runs: [], backtest: {}, valuation: null, extremes: { usa: [], global: [] }, thresholds: {} };
+  const empty: Data = { generated_at: null, methodology_version: null, indicators: [], indices: { usa: {} }, recessions: [],
+    runs: [], backtest: {}, valuation: null, extremes: { usa: [] }, thresholds: {}, recession_watch: null, analogs: null, movers: [] };
   if (!fs.existsSync(file)) return empty;
   const raw = JSON.parse(fs.readFileSync(file, "utf8"));
   return { ...empty, ...raw, indicators: raw.indicators.map(withStatus) };

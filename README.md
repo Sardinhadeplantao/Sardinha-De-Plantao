@@ -1,6 +1,6 @@
 # Kondratiev Monitor
 
-Monitor de ciclos econômicos de longa duração (Kondratiev, Schumpeter, Perez, Freeman, Minsky), com foco nos EUA e visão global.
+Monitor de ciclos econômicos de longa duração (Kondratiev, Schumpeter, Perez, Freeman, Minsky), aplicado aos Estados Unidos.
 **Dados oficiais reais, sem nenhum dado simulado.** Site: https://sardinhadeplantao.github.io/Sardinha-De-Plantao/
 
 ## O que o site mostra
@@ -11,7 +11,7 @@ Monitor de ciclos econômicos de longa duração (Kondratiev, Schumpeter, Perez,
 - **Painel de qualidade** com o resultado de cada coleta.
 
 ## Fontes
-FRED (EUA: PIB real, inflação, juros, crédito, indicador Buffett do Fed, S&P 500, Nasdaq, P&D, novos negócios), Tesouro dos EUA, Banco Mundial (visão global e séries estruturais), BIS (crédito total e hiato de crédito), Shiller (CAPE, estendido até o mês atual com S&P 500 e CPI), SEC EDGAR (investimento das grandes de tecnologia) e Ember (eletricidade mensal: renováveis, eólica e solar, intensidade de CO₂). Séries calculadas: juro real do Fed e prêmio de risco das ações.
+FRED (PIB real, inflação, juros, crédito, desemprego, produtividade, semicondutores, commodities, cobre, VIX, crédito bancário, inadimplência, seguro-desemprego, licenças de construção, indicador Buffett do Fed, S&P 500, Nasdaq, P&D, novos negócios), Tesouro dos EUA, Banco Mundial (séries estruturais), BIS (crédito total, hiato de crédito, serviço da dívida), Shiller (CAPE, estendido até o mês atual com S&P 500 e CPI), SEC EDGAR (investimento das grandes de tecnologia) e Ember (eletricidade mensal: renováveis, eólica e solar, intensidade de CO₂, demanda). Séries calculadas: juro real do Fed, prêmio de risco das ações, regra de Sahm e probabilidade de recessão pela curva de juros.
 
 ## Como funciona
 Todo dia o GitHub Actions (`.github/workflows/ingest.yml`) coleta os dados, calcula os índices, monta o site e publica no GitHub Pages. Sem servidor e sem banco externo.

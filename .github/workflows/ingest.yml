@@ -57,7 +57,7 @@ jobs:
         with: { path: web/out }
       - name: Resumo da coleta
         if: always()
-        run: grep -E '^(run |backtest|valuation|extremes|usa |global |sec_|ember_|x_|bis_us_total|fred_(nasdaq|buffett|gdpc1|gdpdef|bfs|rnd|eqta|sp500)|shiller_cape|missing|exported)' /tmp/export.log | cut -c1-1800 || true
+        run: grep -E '^(run |backtest|valuation|extremes|watch|analogs|movers|usa |global |sec_|ember_|x_|bis_us_total|fred_(nasdaq|buffett|ophnfb|semis|commod|copper|vix|sloos|ccdelinq|icsa|recprob|permit)|shiller_cape|missing|exported)' /tmp/export.log | cut -c1-1800 || true
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: build

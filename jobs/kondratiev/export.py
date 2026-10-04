@@ -53,7 +53,9 @@ def derive(obs):
     - shiller_cape is extended past the last published month: CAPE x (S&P 500 change) x (CPI change)⁻¹, keeping
       Shiller's 10-year real earnings of the last published month (they move slowly).
     - x_real_fedfunds = FEDFUNDS - CPI 12-month inflation.
-    - x_erp = 100 / CAPE - 10-year TIPS real yield (monthly averages)."""
+    - x_erp = 100 / CAPE - 10-year TIPS real yield (monthly averages).
+    - shiller_real_tr (context) is extended the same way, without dividends after Shiller's last month (~1-2 p.p./year less).
+    - x_sahm = Sahm rule from monthly unemployment; x_curve_prob = New York Fed yield-curve recession probability."""
     out, notes = {}, {}
     cape, spx, cpi = obs.get("shiller_cape") or [], obs.get("fred_sp500") or [], obs.get("fred_cpiaucsl") or []
     if cape and spx and cpi:
@@ -69,6 +71,17 @@ def derive(obs):
                 out["shiller_cape"] = list(cape) + ext
                 notes["shiller_cape"] = (f"Publicado por Shiller até {anchor_d.isoformat()[:7]}; de {ext[0][0].isoformat()[:7]} em diante, "
                                          "estimado com o S&P 500 e o CPI do FRED (lucros de 10 anos mantidos).")
+    tr = obs.get("shiller_real_tr") or []
+    if tr and spx and cpi:  # real total return, extended like the CAPE (price only after Shiller's last month)
+        sp_m = dict(_monthly_mean(spx))
+        anchor_d, anchor_v = tr[-1]
+        anchor_d = date(anchor_d.year, anchor_d.month, 1)
+        sp0, cpi0 = sp_m.get(anchor_d), A.value_at_or_before(cpi, anchor_d)
+        if sp0 and cpi0:
+            ext = [(d, anchor_v * (v / sp0) * (cpi0 / A.value_at_or_before(cpi, d))) for d, v in sorted(sp_m.items())
+                   if d > anchor_d and A.value_at_or_before(cpi, d)]
+            if ext:
+                out["shiller_real_tr"] = list(tr) + ext
     fed, cpi_m = obs.get("fred_fedfunds") or [], A.to_monthly(cpi, "monthly")
     if fed and cpi_m:
         infl = {date(d.year, d.month, 1): v for d, v in A.transform(cpi_m, "chg12", "pct")}
@@ -81,10 +94,19 @@ def derive(obs):
         out["x_erp"] = [(date(d.year, d.month, 1), 100 / v - tips_m[date(d.year, d.month, 1)]) for d, v in cape_all
                         if v > 0 and date(d.year, d.month, 1) in tips_m]
         notes["x_erp"] = "Calculado: rendimento de lucros do CAPE (100/CAPE) menos o juro real dos TIPS de 10 anos (média do mês)."
+    unrate = A.to_monthly(obs.get("fred_unrate") or [], "monthly")
+    if len(unrate) > 15:
+        out["x_sahm"] = A.sahm_rule(unrate)
+        notes["x_sahm"] = "Calculado: média de 3 meses do desemprego menos a menor média de 3 meses dos 12 meses anteriores. Sinal a partir de 0,5 p.p."
+    spread = _monthly_mean(obs.get("fred_t10y3m") or [])
+    if spread:
+        out["x_curve_prob"] = A.curve_probability(spread)
+        notes["x_curve_prob"] = ("Calculado com o modelo do Fed de Nova York: Φ(−0,5333 − 0,6330 × spread 10 anos − 3 meses, média do mês). "
+                                 "Aproximação: o Fed usa a taxa da letra de 3 meses em base equivalente a título.")
     return {k: v for k, v in out.items() if v}, notes
 
 
-def _extremes(indicators, scope, limit=8):
+def _extremes(indicators, scope="usa", limit=8):
     """Fresh indicators at the edges of their own history (percentile >= 95 or <= 5), most extreme first."""
     out = []
     for r in indicators:
@@ -96,6 +118,58 @@ def _extremes(indicators, scope, limit=8):
             out.append({"id": r["id"], "name": r["name"], "percentile": p, "basis": basis.get("label", "nível"),
                         "direction": "máxima" if p >= 95 else "mínima"})
     return sorted(out, key=lambda x: -abs(x["percentile"] - 50))[:limit]
+
+
+ANALOG_LENSES = ["kondratiev", "perez", "minsky"]  # the lenses with the longest monthly histories
+
+# Short-cycle recession signals: (id, rule text, test on the latest value)
+WATCH = [
+    ("x_sahm", "≥ 0,5 p.p.", lambda v, r: v >= 0.5),
+    ("x_curve_prob", "≥ 30%", lambda v, r: v >= 30),
+    ("fred_recprob", "≥ 20%", lambda v, r: v >= 20),
+    ("fred_icsa", "média de 4 semanas 20% acima da mínima de 52 semanas", None),
+    ("fred_nfci", "> 0 (condições mais apertadas que a média)", lambda v, r: v > 0),
+    ("fred_t10y3m", "< 0 (curva invertida)", lambda v, r: v < 0),
+]
+
+
+def _claims_signal(history):
+    """Initial claims: 4-week average vs. the lowest 4-week average of the past 52 weeks (%)."""
+    vals = [v for _, v in history]
+    if len(vals) < 56:
+        return None
+    avg = [sum(vals[i - 3:i + 1]) / 4 for i in range(3, len(vals))]
+    low = min(avg[-52:])
+    return (avg[-1] / low - 1) * 100 if low else None
+
+
+def _recession_watch(indicators, raw):
+    """Latest reading of each short-cycle signal with its rule. Descriptive: no single signal is a forecast."""
+    by_id = {i["id"]: i for i in indicators}
+    out = []
+    for sid, rule, test in WATCH:
+        i = by_id.get(sid)
+        if not i or i["value"] is None:
+            continue
+        value, shown = i["value"], None
+        if sid == "fred_icsa":
+            shown = _claims_signal(raw.get(sid) or [])
+            triggered = shown is not None and shown >= 20
+        else:
+            triggered = bool(test(value, i))
+        fresh = freshness_status(date.fromisoformat(i["ref_date"]), i["stale_after_days"])
+        out.append({"id": sid, "name": i["name"], "value": _round(value), "unit": i["unit"], "ref_date": i["ref_date"],
+                    "rule": rule, "triggered": triggered, "signal_value": _round(shown) if shown is not None else None,
+                    "status": fresh})
+    return {"signals": out, "on": sum(1 for x in out if x["triggered"]), "total": len(out)}
+
+
+def _movers(indicators, limit=8):
+    """Scored indicators whose 0-100 score moved most over the last 3 months."""
+    ms = [i for i in indicators if i.get("score_change_3m") is not None]
+    ms.sort(key=lambda i: -abs(i["score_change_3m"]))
+    return [{"id": i["id"], "name": i["name"], "perspective": i["perspective"], "score": i["score"],
+             "change": i["score_change_3m"]} for i in ms[:limit]]
 
 
 def _recessions(hist):
@@ -127,6 +201,7 @@ def _index_summary(index, rows, drivers_raw, series, last_month, total):
     bottom = [d for d in reversed(drivers) if d not in top][:2]
     fmt = lambda ds: ", ".join(f"{d['name']} ({_int(d['score'])})" for d in ds)
     past = A.value_months_ago(series, 12)
+    past1, past3 = A.value_months_ago(series, 1), A.value_months_ago(series, 3)
     stale = keys[-1] < last_month - A.STALE_INDEX_MONTHS
     as_of = A.key_to_label(keys[-1])
     summary = f"{state}: índice {_int(value)}/100, com {series[-1][2]} de {total} indicadores. Pontuações mais altas: {fmt(top)}."
@@ -142,6 +217,8 @@ def _index_summary(index, rows, drivers_raw, series, last_month, total):
     return {
         "label": A.INDEX_LABELS[index], "state": state, "value": value, "n": series[-1][2], "total": total, "groups": group_scores,
         "change_12m": round(value - past, 1) if past is not None else None, "as_of": as_of, "stale": stale,
+        "change_1m": round(value - past1, 1) if past1 is not None else None,
+        "change_3m": round(value - past3, 1) if past3 is not None else None,
         "history": [[A.key_to_label(k), round(v, 1), n] for k, v, n in series], "drivers": drivers, "summary": summary,
     }
 
@@ -171,6 +248,7 @@ def build(engine):
             continue
         row = {k: s[k] for k in s.keys()}
         row.update(value=None, previous=None, ref_date=None, as_of=None, history=[], trend=[], stats=None, score=None, view=None,
+                   score_change_3m=None,
                    note=notes.get(s["id"]),
                    polarity=A.SCORING[s["id"]][0] if s["id"] in A.SCORING else 0,
                    transform=A.SCORING[s["id"]][1] if s["id"] in A.SCORING else None)
@@ -188,10 +266,12 @@ def build(engine):
                 if scores:
                     members.setdefault((s["scope"], s["perspective"]), {})[s["id"]] = scores
                     row["score"] = round(scores[-1][1], 1)
+                    ch = A.score_change(scores, 3)
+                    row["score_change_3m"] = round(ch, 1) if ch is not None else None
                 freqs[s["id"]] = s["frequency"]
         indicators.append(row)
     last_month = A.month_key(date.today())
-    indices = {"usa": {}, "global": {}}
+    indices = {"usa": {}}
     for scope in indices:
         for persp in PERSPECTIVES:
             rows = [r for r in indicators if r["scope"] == scope and r["perspective"] == persp and r["id"] in A.SCORING]
@@ -205,10 +285,15 @@ def build(engine):
     if cape and context.get("shiller_real_tr"):
         valuation = A.forward_returns(A.to_monthly([(date.fromisoformat(d), v) for d, v in cape["history"]], "monthly"),
                                       A.to_monthly(context["shiller_real_tr"], "monthly"))
+    lens_hist = {p: [(int(h[0][:4]) * 12 + int(h[0][5:7]) - 1, h[1]) for h in indices["usa"][p]["history"]]
+                 for p in ANALOG_LENSES if indices["usa"][p]["history"]}
+    analogs = A.analogs(lens_hist, recessions, A.to_monthly(context.get("shiller_real_tr") or [], "monthly")) \
+        if len(lens_hist) == len(ANALOG_LENSES) else None
     return {"generated_at": datetime.now(timezone.utc).isoformat(), "methodology_version": A.METHODOLOGY_VERSION,
             "indicators": indicators, "indices": indices, "recessions": recessions,
+            "recession_watch": _recession_watch(indicators, obs_by_id), "analogs": analogs, "movers": _movers(indicators),
             "backtest": {k: v for k, v in backtest.items() if v}, "valuation": valuation,
-            "extremes": {scope: _extremes(indicators, scope) for scope in ("usa", "global")},
+            "extremes": {"usa": _extremes(indicators)},
             "thresholds": {p: [t for t, _ in A.STATES[p] if t > 0] for p in PERSPECTIVES},
             "runs": [{**r, "started_at": r["started_at"].isoformat(),
                       "finished_at": r["finished_at"].isoformat() if r["finished_at"] else None}
@@ -229,6 +314,9 @@ if __name__ == "__main__":
         for p, v in idx.items():
             print(f"{scope:6} {p:11} {v['state']}  value={v['value']}  n={v['n']}/{v['total']}  as_of={v['as_of']}  stale={v['stale']}")
     print("extremes:", json.dumps(data["extremes"]["usa"], ensure_ascii=False))
+    print("watch:", json.dumps(data["recession_watch"], ensure_ascii=False))
+    print("analogs:", json.dumps(data["analogs"], ensure_ascii=False))
+    print("movers:", json.dumps(data["movers"], ensure_ascii=False))
     for i in data["indicators"]:
         print(f"{i['id']:32} {len(i['history']):4} pts  latest={i['ref_date']}  value={i['value']}  score={i['score']}")
     for r in data["runs"][:8]:
