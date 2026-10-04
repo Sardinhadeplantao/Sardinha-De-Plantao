@@ -194,3 +194,15 @@ def test_edgar_uses_year_in_progress(monkeypatch):
     monkeypatch.setattr(edgar, "_facts", lambda cik, session=None: facts)
     last = edgar.fetch({"code": "capex_ocf"})[-1]
     assert last[0] == date(2024, 9, 30) and abs(last[1] - (10 + 20 * 3) / 160 * 100) < 1e-6 * 100
+
+
+def test_edgar_merges_capex_tags_across_a_tag_change(monkeypatch):
+    from kondratiev.sources import edgar
+    facts = _facts({2023: [10, 10, 10, 10], 2024: [20, 20, 20, 20]}, {2023: [40, 40, 40, 40], 2024: [40, 40, 40, 40]})
+    gaap = facts["facts"]["us-gaap"]
+    entries = gaap.pop("PaymentsToAcquirePropertyPlantAndEquipment")["units"]["USD"]
+    # the company used the old tag for 2023 and the new tag from 2024 on
+    gaap["PaymentsToAcquirePropertyPlantAndEquipment"] = {"units": {"USD": [e for e in entries if e["start"].startswith("2023")]}}
+    gaap["PaymentsToAcquireProductiveAssets"] = {"units": {"USD": [e for e in entries if e["start"].startswith("2024")]}}
+    monkeypatch.setattr(edgar, "_facts", lambda cik, session=None: facts)
+    assert abs(edgar.fetch({"code": "capex_ocf"})[-1][1] - 50.0) < 1e-6

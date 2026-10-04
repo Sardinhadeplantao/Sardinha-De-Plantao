@@ -9,7 +9,9 @@ import requests
 from kondratiev.http import get_json
 
 COMPANIES = {"MSFT": 789019, "GOOGL": 1652044, "AMZN": 1018724, "META": 1326801, "ORCL": 1341439}
-CAPEX, OCF = "PaymentsToAcquirePropertyPlantAndEquipment", "NetCashProvidedByUsedInOperatingActivities"
+# Companies switch XBRL tags over time (Amazon moved to ...ProductiveAssets in 2017): capex facts are merged across tags.
+CAPEX_TAGS = ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"]
+CAPEX, OCF = CAPEX_TAGS[0], "NetCashProvidedByUsedInOperatingActivities"
 # The SEC requires a descriptive User-Agent with a contact address. The default uses the repository owner's public
 # GitHub no-reply address; set the SEC_USER_AGENT secret to override it with a monitored contact.
 UA = (os.environ.get("SEC_USER_AGENT") or "").strip() or \
@@ -81,7 +83,8 @@ def fetch(series, since=None, session=None):
     per_company, notes = {}, []
     for name, cik in COMPANIES.items():
         gaap = _facts(cik, session)["facts"]["us-gaap"]
-        raw = {t: gaap.get(t, {}).get("units", {}).get("USD", []) for t in (CAPEX, OCF)}
+        raw = {CAPEX: [e for t in CAPEX_TAGS for e in gaap.get(t, {}).get("units", {}).get("USD", [])],
+               OCF: gaap.get(OCF, {}).get("units", {}).get("USD", [])}
         q = {t: discrete_quarters(v) for t, v in raw.items()}
         cap, ocf = ttm(q[CAPEX]), ttm(q[OCF])
         per_company[name] = {_calendar_quarter(d): (cap[d], ocf[d]) for d in cap if d in ocf}

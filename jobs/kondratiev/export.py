@@ -121,7 +121,7 @@ if __name__ == "__main__":
     for i in data["indicators"]:
         print(f"{i['id']:32} {len(i['history']):4} pts  latest={i['ref_date']}  value={i['value']}  score={i['score']}")
     for r in data["runs"][:8]:
-        print(f"run {r['source']}: {r['status']} rows={r['rows']} {(r['error'] or '')[:400]}")
+        print(f"run {r['source']}: {r['status']} rows={r['rows']} {(r['error'] or '')[:1500]}")
     print("backtest:", json.dumps(data["backtest"], ensure_ascii=False))
     print("valuation:", json.dumps(data["valuation"], ensure_ascii=False))
     print(f"exported {len(data['indicators'])} indicators, {len(data['recessions'])} recessions")
