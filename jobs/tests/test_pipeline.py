@@ -135,3 +135,74 @@ def test_shiller_fails_loudly_when_layout_changes():
             shiller.fetch({"code": "CAPE"})
     finally:
         shiller._cache.clear()
+
+
+def _facts(capex_by_year, ocf_by_year, fy_start_month=1):
+    """Synthetic SEC companyfacts in the real structure: cash-flow items arrive year-to-date (3, 6, 9, 12 months)."""
+    from datetime import date as D
+    def entries(per_year):
+        out = []
+        for year, q in per_year.items():
+            start = D(year, fy_start_month, 1)
+            ends = [D(year, fy_start_month + 2, 28), D(year, fy_start_month + 5, 30), D(year, fy_start_month + 8, 30), D(year + 1, 1, 1)]
+            ends = [e if e.year == year else D(year, 12, 31) for e in ends]
+            ends[-1] = D(year, 12, 31)
+            ends[0] = D(year, 3, 31)
+            cum = 0
+            for e, v in zip(ends, q):
+                cum += v
+                out.append({"start": start.isoformat(), "end": e.isoformat(), "val": cum, "form": "10-K" if e.month == 12 else "10-Q",
+                            "filed": (e.replace(year=e.year + (1 if e.month == 12 else 0), month=1 if e.month == 12 else e.month)).isoformat()})
+        return out
+    return {"facts": {"us-gaap": {
+        "PaymentsToAcquirePropertyPlantAndEquipment": {"units": {"USD": entries(capex_by_year)}},
+        "NetCashProvidedByUsedInOperatingActivities": {"units": {"USD": entries(ocf_by_year)}}}}}
+
+
+def test_edgar_rebuilds_quarters_from_ytd_and_aggregates(monkeypatch):
+    from kondratiev.sources import edgar
+    capex = {2023: [10, 10, 10, 10], 2024: [20, 20, 20, 20]}
+    ocf = {2023: [40, 40, 40, 40], 2024: [40, 40, 40, 40]}
+    monkeypatch.setattr(edgar, "_facts", lambda cik, session=None: _facts(capex, ocf))
+    rows = edgar.fetch({"code": "capex_ocf"})
+    # five identical companies: ratio equals one company's TTM capex / TTM OCF
+    last = rows[-1]
+    assert last[0] == date(2024, 12, 31) and abs(last[1] - 50.0) < 1e-6        # 80 / 160
+    first_full = [r for r in rows if r[0] == date(2023, 12, 31)][0]
+    assert abs(first_full[1] - 25.0) < 1e-6                                     # 40 / 160
+    usd = edgar.fetch({"code": "capex"})
+    assert abs(usd[-1][1] - 5 * 80 / 1e9) < 1e-12
+
+
+def test_edgar_ignores_standalone_quarter_facts(monkeypatch):
+    from kondratiev.sources import edgar
+    capex = {2023: [10, 10, 10, 10], 2024: [20, 20, 20, 20]}
+    ocf = {2023: [40, 40, 40, 40], 2024: [40, 40, 40, 40]}
+    facts = _facts(capex, ocf)
+    # extra 3-month stand-alone fact for Q2 2024 with a misleading value (10-Q income-style context)
+    facts["facts"]["us-gaap"]["PaymentsToAcquirePropertyPlantAndEquipment"]["units"]["USD"].append(
+        {"start": "2024-04-01", "end": "2024-06-30", "val": 999, "form": "10-Q", "filed": "2024-08-01"})
+    monkeypatch.setattr(edgar, "_facts", lambda cik, session=None: facts)
+    assert abs(edgar.fetch({"code": "capex_ocf"})[-1][1] - 50.0) < 1e-6
+
+
+def test_edgar_uses_year_in_progress(monkeypatch):
+    from kondratiev.sources import edgar
+    facts = _facts({2023: [10, 10, 10, 10], 2024: [20, 20, 20, 20]}, {2023: [40, 40, 40, 40], 2024: [40, 40, 40, 40]})
+    for tag in facts["facts"]["us-gaap"].values():  # drop the 2024 annual filing: only Q1-Q3 2024 are known
+        tag["units"]["USD"] = [e for e in tag["units"]["USD"] if not (e["start"] == "2024-01-01" and e["end"] == "2024-12-31")]
+    monkeypatch.setattr(edgar, "_facts", lambda cik, session=None: facts)
+    last = edgar.fetch({"code": "capex_ocf"})[-1]
+    assert last[0] == date(2024, 9, 30) and abs(last[1] - (10 + 20 * 3) / 160 * 100) < 1e-6 * 100
+
+
+def test_edgar_merges_capex_tags_across_a_tag_change(monkeypatch):
+    from kondratiev.sources import edgar
+    facts = _facts({2023: [10, 10, 10, 10], 2024: [20, 20, 20, 20]}, {2023: [40, 40, 40, 40], 2024: [40, 40, 40, 40]})
+    gaap = facts["facts"]["us-gaap"]
+    entries = gaap.pop("PaymentsToAcquirePropertyPlantAndEquipment")["units"]["USD"]
+    # the company used the old tag for 2023 and the new tag from 2024 on
+    gaap["PaymentsToAcquirePropertyPlantAndEquipment"] = {"units": {"USD": [e for e in entries if e["start"].startswith("2023")]}}
+    gaap["PaymentsToAcquireProductiveAssets"] = {"units": {"USD": [e for e in entries if e["start"].startswith("2024")]}}
+    monkeypatch.setattr(edgar, "_facts", lambda cik, session=None: facts)
+    assert abs(edgar.fetch({"code": "capex_ocf"})[-1][1] - 50.0) < 1e-6

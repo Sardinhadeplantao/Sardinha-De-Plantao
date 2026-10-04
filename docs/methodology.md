@@ -15,7 +15,7 @@ Recessões marcadas nos gráficos vêm do NBER (série USREC do FRED).
 
 ## 3. Índice por ótica (0 a 100)
 1. Cada indicador é transformado: nível, variação de 12 meses ou variação de 5 anos (conforme `SCORING` em `jobs/kondratiev/analytics.py`).
-2. Calcula-se o **percentil em janela expansiva** (só dados até aquela data, sem olhar o futuro). Mínimo de 15 observações (anual) a 60 (mensal).
+2. Calcula-se o **percentil em janela expansiva** (só dados até aquela data, sem olhar o futuro). Mínimo de 15 observações (anual), 28 (trimestral) e 60 (mensal); séries com histórico curto, como o capex das grandes de tecnologia (31 trimestres), pontuam só nos períodos mais recentes.
 3. Se a polaridade é negativa, inverte-se (100 menos o percentil).
 4. O índice é a **média simples** dos indicadores disponíveis no mês, exigindo pelo menos 3 (senão, "dados insuficientes").
 5. Defasagem de publicação assumida: anual 12 meses, trimestral 3, mensal 1. Leituras mais velhas que 36 (anual), 9 (trimestral) ou 3 meses (demais) saem do cálculo.

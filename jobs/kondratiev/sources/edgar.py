@@ -4,12 +4,14 @@ Hyperscaler AI-capex proxy: trailing-four-quarter capital expenditure and operat
 Microsoft, Alphabet, Amazon, Meta and Oracle. `code` is 'capex_ocf' (ratio, %) or 'capex' (US$ bn).
 Cash-flow statements report year-to-date amounts, so discrete quarters are rebuilt by differencing."""
 import os
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 import requests
 from kondratiev.http import get_json
 
 COMPANIES = {"MSFT": 789019, "GOOGL": 1652044, "AMZN": 1018724, "META": 1326801, "ORCL": 1341439}
-CAPEX, OCF = "PaymentsToAcquirePropertyPlantAndEquipment", "NetCashProvidedByUsedInOperatingActivities"
+# Companies switch XBRL tags over time (Amazon moved to ...ProductiveAssets in 2017): capex facts are merged across tags.
+CAPEX_TAGS = ["PaymentsToAcquirePropertyPlantAndEquipment", "PaymentsToAcquireProductiveAssets"]
+CAPEX, OCF = CAPEX_TAGS[0], "NetCashProvidedByUsedInOperatingActivities"
 # The SEC requires a descriptive User-Agent with a contact address. The default uses the repository owner's public
 # GitHub no-reply address; set the SEC_USER_AGENT secret to override it with a monitored contact.
 UA = (os.environ.get("SEC_USER_AGENT") or "").strip() or \
@@ -37,12 +39,15 @@ def discrete_quarters(entries):
         key = (e["start"], e["end"])
         if key not in best or e["filed"] > best[key]["filed"]:
             best[key] = e
+    # Fiscal-year starts: the start of every annual period and the day after each annual period ends (the year in progress).
+    annual = [(k, e) for k, e in best.items() if 340 <= (_d(k[1]) - _d(k[0])).days <= 400]
+    starts = {k[0] for k, _ in annual} | {(_d(k[1]) + timedelta(days=1)).isoformat() for k, _ in annual}
     by_start = {}
-    for (s, en), e in best.items():
-        days = (_d(en) - _d(s)).days
-        if days > 400:
+    for (s_, en), e in best.items():
+        days = (_d(en) - _d(s_)).days
+        if days > 400 or s_ not in starts:  # ignore stand-alone quarter facts that do not start at a fiscal year start
             continue
-        by_start.setdefault(s, {})[en] = (days, e["val"])
+        by_start.setdefault(s_, {})[en] = (days, e["val"])
     out = {}
     for s, ends in by_start.items():
         prev_val, prev_end = 0.0, None
@@ -75,15 +80,20 @@ def _calendar_quarter(d):
 
 
 def fetch(series, since=None, session=None):
-    per_company = {}
+    per_company, notes = {}, []
     for name, cik in COMPANIES.items():
         gaap = _facts(cik, session)["facts"]["us-gaap"]
-        cap = ttm(discrete_quarters(gaap[CAPEX]["units"]["USD"]))
-        ocf = ttm(discrete_quarters(gaap[OCF]["units"]["USD"]))
+        raw = {CAPEX: [e for t in CAPEX_TAGS for e in gaap.get(t, {}).get("units", {}).get("USD", [])],
+               OCF: gaap.get(OCF, {}).get("units", {}).get("USD", [])}
+        q = {t: discrete_quarters(v) for t, v in raw.items()}
+        cap, ocf = ttm(q[CAPEX]), ttm(q[OCF])
         per_company[name] = {_calendar_quarter(d): (cap[d], ocf[d]) for d in cap if d in ocf}
+        last = max(per_company[name]) if per_company[name] else None
+        notes.append(f"{name}: raw capex/ocf={len(raw[CAPEX])}/{len(raw[OCF])}, quarters={len(q[CAPEX])}/{len(q[OCF])}, "
+                     f"ttm={len(cap)}/{len(ocf)}, usable={len(per_company[name])}, last={last}")
     quarters = set.intersection(*(set(v) for v in per_company.values()))
     if not quarters:
-        raise RuntimeError("no common quarters across the five companies")
+        raise RuntimeError("no common quarters across the five companies | " + " | ".join(notes))
     out = []
     for q in sorted(quarters):
         capex = sum(per_company[c][q][0] for c in per_company)

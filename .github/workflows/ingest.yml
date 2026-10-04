@@ -28,7 +28,7 @@ jobs:
           python -m kondratiev.validate || echo "Alguma série falhou na validação (veja acima)"
           python -m kondratiev.ingest || echo "Alguma fonte falhou (veja acima e no painel de qualidade)"
           mkdir -p ../web/data ../web/public
-          python -m kondratiev.export ../web/data/data.json
+          python -m kondratiev.export ../web/data/data.json | tee /tmp/export.log
           cp ../web/data/data.json ../web/public/data.json
       - name: Alertas (somente na branch principal)
         if: github.ref == 'refs/heads/main'
@@ -52,6 +52,9 @@ jobs:
           npm run build
       - uses: actions/upload-pages-artifact@v3
         with: { path: web/out }
+      - name: Resumo da coleta
+        if: always()
+        run: grep -E '^(run |backtest|valuation|usa |global |sec_|shiller_cape|exported)' /tmp/export.log | cut -c1-1800 || true
   deploy:
     if: github.ref == 'refs/heads/main'
     needs: build
