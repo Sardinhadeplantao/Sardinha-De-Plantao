@@ -64,6 +64,10 @@ def _build():
         out.append(dict(id=id_, scope="usa", perspective=persp, layer=layer, source="fred", code=code,
                         name=f"{name} (EUA)", country="USA", unit=unit, frequency=freq, role="procyclical", rationale=why,
                         source_url=f"https://fred.stlouisfed.org/series/{code}", stale_after_days=stale))
+    out.append(dict(id="fred_usrec", scope="context", perspective="minsky", layer="regime", source="fred", code="USREC",
+                    name="Recessões dos EUA (NBER)", country="USA", unit="0/1", frequency="monthly", role="context",
+                    rationale="Datação oficial das recessões americanas, usada apenas para marcar os gráficos.",
+                    source_url="https://fred.stlouisfed.org/series/USREC", stale_after_days=90))
     for id_, col, label, layer, persp in _TREASURY:
         out.append(dict(id=id_, scope="usa", perspective=persp, layer=layer, source="treasury", code=col,
                         name=f"Juros do Tesouro {label} (EUA)", country="USA", unit="% a.a.", frequency="daily",
