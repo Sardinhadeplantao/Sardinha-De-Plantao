@@ -20,7 +20,7 @@ _cache: dict = {}
 def _facts(cik, session=None):
     if cik not in _cache:
         _cache[cik] = get_json(f"https://data.sec.gov/api/xbrl/companyfacts/CIK{cik:010d}.json",
-                               headers={"User-Agent": UA}, min_interval=0.3, session=session)
+                               headers={"User-Agent": UA, "Accept-Encoding": "gzip, deflate"}, min_interval=0.3, session=session, error_body=True)
     return _cache[cik]
 
 

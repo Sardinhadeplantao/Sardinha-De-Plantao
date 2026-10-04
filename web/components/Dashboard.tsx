@@ -136,7 +136,9 @@ export function Dashboard({ data }: { data: Data }) {
   const [scope, setScope] = useState<"usa" | "global">("usa");
   const [open, setOpen] = useState<Indicator | null>(null);
   const indices = data.indices[scope];
-  const list = useMemo(() => data.indicators.filter((i) => i.scope === scope), [data, scope]);
+  const all = useMemo(() => data.indicators.filter((i) => i.scope === scope), [data, scope]);
+  const list = useMemo(() => all.filter((i) => i.value !== null), [all]);
+  const missing = all.filter((i) => i.value === null);
   const empty = data.indicators.length === 0;
   const stale = list.filter((i) => i.status === "obsoleto").length;
 
@@ -203,6 +205,7 @@ export function Dashboard({ data }: { data: Data }) {
 
       <section className="mt-10">
         <h2 className="mb-3 text-lg font-semibold">Qualidade dos dados</h2>
+        {missing.length > 0 && <p className="mb-2 text-xs text-amber-400">Séries sem dados nesta visão ({missing.length}): {missing.map((m) => m.name).join("; ")}. Veja a última coleta abaixo.</p>}
         {data.runs.length === 0 ? <p className="text-sm text-slate-500">Nenhuma execução registrada.</p> : (
           <table className="w-full text-left text-xs"><thead className="text-slate-400"><tr><th>Fonte</th><th>Início</th><th>Status</th><th>Linhas</th><th>Erro</th></tr></thead>
             <tbody>{data.runs.slice(0, 6).map((r, k) => (<tr key={k} className="border-t border-slate-800"><td className="py-1">{r.source}</td><td>{r.started_at.slice(0, 16)}</td><td>{r.status}</td><td>{r.rows}</td><td className="text-red-400">{r.error}</td></tr>))}</tbody></table>
