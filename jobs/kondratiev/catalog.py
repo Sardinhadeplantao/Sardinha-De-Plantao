@@ -64,6 +64,21 @@ def _build():
         out.append(dict(id=id_, scope="usa", perspective=persp, layer=layer, source="fred", code=code,
                         name=f"{name} (EUA)", country="USA", unit=unit, frequency=freq, role="procyclical", rationale=why,
                         source_url=f"https://fred.stlouisfed.org/series/{code}", stale_after_days=stale))
+    out.append(dict(id="bis_us_credit_gap", scope="usa", perspective="minsky", layer="regime", source="bis",
+                    code="WS_CREDIT_GAP/Q.US.P.A.C", name="Hiato de crédito sobre o PIB (EUA)", country="USA", unit="p.p. do PIB",
+                    frequency="quarterly", role="fragility",
+                    rationale="Desvio do crédito privado/PIB em relação à sua tendência (filtro HP, método do BIS): o indicador clássico de fragilidade de Minsky; acima de 10 p.p. historicamente precede crises.",
+                    source_url="https://data.bis.org/topics/CREDIT_GAPS", stale_after_days=150))
+    out.append(dict(id="bis_us_dsr", scope="usa", perspective="minsky", layer="regime", source="bis",
+                    code="WS_DSR/Q.US.P", name="Serviço da dívida do setor privado (EUA)", country="USA", unit="% da renda",
+                    frequency="quarterly", role="fragility",
+                    rationale="Parcela da renda do setor privado comprometida com juros e amortizações: pressão direta sobre a capacidade de pagamento.",
+                    source_url="https://data.bis.org/topics/DSR", stale_after_days=150))
+    out.append(dict(id="shiller_cape", scope="usa", perspective="perez", layer="regime", source="shiller", code="CAPE",
+                    name="CAPE de Shiller — S&P 500 (EUA)", country="USA", unit="múltiplo", frequency="monthly",
+                    role="valuation_excess",
+                    rationale="Preço sobre lucros reais médios de 10 anos, desde 1871: mede o descolamento entre o capital financeiro e a produção (frenesi de Perez).",
+                    source_url="https://shillerdata.com/", stale_after_days=75))
     out.append(dict(id="fred_usrec", scope="context", perspective="minsky", layer="regime", source="fred", code="USREC",
                     name="Recessões dos EUA (NBER)", country="USA", unit="0/1", frequency="monthly", role="context",
                     rationale="Datação oficial das recessões americanas, usada apenas para marcar os gráficos.",

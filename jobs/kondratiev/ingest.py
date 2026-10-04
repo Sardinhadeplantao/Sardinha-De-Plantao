@@ -5,9 +5,9 @@ from kondratiev import db
 from kondratiev.catalog import CATALOG
 import os
 import time
-from kondratiev.sources import fred, treasury, worldbank
+from kondratiev.sources import bis, fred, shiller, treasury, worldbank
 
-SOURCES = {"fred": fred, "treasury": treasury, "worldbank": worldbank}
+SOURCES = {"bis": bis, "fred": fred, "shiller": shiller, "treasury": treasury, "worldbank": worldbank}
 
 
 def run(engine, catalog=CATALOG, sources=SOURCES, session=None):

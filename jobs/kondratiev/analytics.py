@@ -43,6 +43,9 @@ SCORING = {
     "fred_hy": (1, "level", "diff"), "fred_nfci": (1, "level", "diff"), "fred_tdsp": (1, "level", "diff"),
     "fred_m2sl": (1, "chg12", "pct"), "fred_mortgage30us": (1, "level", "diff"),
     "ust_3m": (1, "level", "diff"), "ust_2y": (1, "level", "diff"),
+    "bis_us_credit_gap": (1, "level", "diff"), "bis_us_dsr": (1, "level", "diff"),
+    # Perez: long-run equity valuation
+    "shiller_cape": (1, "level", "diff"),
 }
 
 # publication lag (months) before a reading can be used, and max age (months) before it is considered stale
